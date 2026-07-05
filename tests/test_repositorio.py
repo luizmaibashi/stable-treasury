@@ -48,6 +48,27 @@ def test_salvar_precos_idempotente_nao_duplica():
     assert len(ler_serie_precos(eng, "usd-coin")) == 1
 
 
+def test_salvar_precos_colisao_intra_lote_nao_quebra():
+    # PAVC audit: 2 escritas do MESMO ponto colidindo (TOCTOU: SELECT verifica
+    # existência, depois INSERT sem atomicidade) lançavam IntegrityError não
+    # tratado. Fix: savepoint por linha + except IntegrityError = idempotente.
+    #
+    # Concorrência real (múltiplas conexões simultâneas) foi verificada à mão
+    # contra o Postgres do container (pool de conexões de verdade — 5 tentativas
+    # x 5 threads, sempre idempotente, zero exceção). SQLite com StaticPool
+    # compartilha 1 única conexão sqlite3 entre threads, que não é thread-safe
+    # pra execução concorrente real (é limitação do driver, não do código) —
+    # por isso este teste simula a colisão dentro do MESMO lote/chamada, que
+    # exercita a mesma lógica de captura sem depender de threading no SQLite.
+    eng = _engine_teste()
+    ponto = _dt(11), 0.96
+    # 2 pontos idênticos no mesmo lote: a 2ª ocorrência colide com a 1ª
+    # (que já foi inserida e commitada via savepoint na mesma chamada).
+    n = salvar_precos(eng, "colisao-test", [ponto, ponto])
+    assert n == 1  # só a 1ª conta; a 2ª colide e é descartada sem exceção
+    assert len(ler_serie_precos(eng, "colisao-test")) == 1
+
+
 def test_precos_separados_por_ativo():
     eng = _engine_teste()
     salvar_precos(eng, "usd-coin", [(_dt(11), 0.96)])

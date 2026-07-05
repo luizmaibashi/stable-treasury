@@ -25,6 +25,15 @@ def test_var_es_captura_cauda_que_var_sozinho_perde():
     assert es == 0.3
 
 
+def test_var_es_historico_com_array_vazio_levanta_erro_claro():
+    # PAVC audit: array vazio quebrava com IndexError obscuro. Deve falhar
+    # alto e claro (ValueError) — nunca retornar (0,0), que mentiria "risco zero"
+    # quando na verdade é "sem dado pra concluir nada".
+    import pytest
+    with pytest.raises(ValueError, match="vazio"):
+        var_es_historico(np.array([]), confianca=0.97)
+
+
 def test_sem_choque_var_e_es_sao_zero():
     retornos = np.array([0.0] * 10)
     var, es = var_es_historico(retornos, confianca=0.9)
