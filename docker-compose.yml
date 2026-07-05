@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16
+    container_name: stable_treasury_db
+    environment:
+      POSTGRES_USER: treasury
+      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: stable_treasury
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U treasury -d stable_treasury"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:

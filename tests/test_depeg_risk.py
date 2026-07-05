@@ -1,14 +1,16 @@
+from datetime import timezone
+
 import numpy as np
 try:
     from src.depeg_risk import (
-        var_es_historico, historico_preco_peg,
+        var_es_historico, historico_preco_peg, historico_pontos_peg,
         desvio_peg, classificar_risco_e_teto, avaliar_risco_atual,
     )
 except ImportError:
     import sys
     sys.path.insert(0, ".")
     from src.depeg_risk import (
-        var_es_historico, historico_preco_peg,
+        var_es_historico, historico_preco_peg, historico_pontos_peg,
         desvio_peg, classificar_risco_e_teto, avaliar_risco_atual,
     )
 
@@ -38,6 +40,17 @@ def test_historico_preco_peg_cobre_evento_usdc_svb():
     # granularidade diária amostra 1 ponto/dia, então não pega o mínimo intra-dia
     # exato (0.8767, que é hourly) — mas a queda real do evento tem que aparecer
     assert min(precos) < 0.97
+
+
+def test_historico_pontos_peg_retorna_ts_e_preco():
+    inicio_svb = 1678406400  # 2023-03-10 00:00 UTC
+    pontos = historico_pontos_peg("usd-coin", inicio_svb, dias=6)
+    assert len(pontos) > 0
+    ts, price = pontos[0]
+    assert ts.tzinfo is not None                 # datetime tz-aware (UTC)
+    assert ts.tzinfo == timezone.utc
+    assert isinstance(price, float)
+    assert min(p for _, p in pontos) < 0.97      # a queda real do evento aparece
 
 
 def test_desvio_peg_e_diferenca_direta_de_1():
