@@ -1,0 +1,36 @@
+# Alíquotas IOF vigentes conforme Decreto 6.306/2007 e alterações até jul/2026
+# Fonte: Receita Federal / Planalto
+# NOTA: Verificar decreto vigente para valores atualizados - este é um showcase técnico,
+# não assessoria jurídica ou fiscal.
+
+operacoes:
+  - tipo: "remessa_internacional_terceiros"
+    descricao: "Remessa internacional para terceiros (serviços, pagamentos)"
+    aliquota_percent: 3.5
+    decreto: "Decreto 12.499/2025"
+
+  - tipo: "remessa_mesma_titularidade"
+    descricao: "Remessa internacional mesma titularidade (conta própria)"
+    aliquota_percent: 3.5
+    decreto: "Decreto 12.499/2025"
+
+  - tipo: "investimento_exterior"
+    descricao: "Investimento no exterior (aportes, tesouraria)"
+    aliquota_percent: 1.1
+    decreto: "Decreto 6.306/2007 c/ atualizações"
+
+  - tipo: "cartao_internacional"
+    descricao: "Cartão internacional (crédito/débito)"
+    aliquota_percent: 3.5
+    decreto: "Decreto 12.499/2025"
+
+  - tipo: "entrada_recursos_exterior"
+    descricao: "Entrada de recursos do exterior (ingressos)"
+    aliquota_percent: 0.38
+    decreto: "Decreto 6.306/2007 c/ atualizações"
+
+  - tipo: "stablecoin"
+    descricao: "Transações com stablecoin (USDT/USDC) - criptomoeda"
+    aliquota_percent: 0.0
+    observacao: "IOF não incide sobre transações em criptomoedas (IN RFB 1888/2019)"
+    decreto: "N/A"

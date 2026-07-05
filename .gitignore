@@ -1,0 +1,23 @@
+# Python / Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Ambientes virtuais
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Streamlit/UI
+.streamlit/secrets.toml
+
+# Agentes / Base de Conhecimento
+brain/
+.agents/
+
+# IDE
+.vscode/
+.idea/
