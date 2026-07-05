@@ -81,6 +81,8 @@
 6. ~~Projeto é 100% stateless (sem histórico persistido)~~ **RESOLVIDO** — persistência via SQLAlchemy + Postgres em Docker (ADR-0005); histórico 2022→hoje ingerido, série de risco (backtest) persistida.
 7. Depeg Risk Engine mede risco só sobre USDC (`usd-coin`) e aplica o teto ao total em stablecoin; USDT tem perfil de reserva/attestation distinto. Ideal: teto ponderado pela composição real da carteira (USDT vs USDC). Simplificação consciente, documentada em `app.py`.
 8. VaR/ES usa granularidade diária (DefiLlama `period=1d`), que suaviza o mínimo intra-dia real (ex: USDC tocou 0,8767 hourly em mar/2023, mas a série diária registra ~0,96). O risco de cauda real é subestimado — mitigável usando `period=1h` em janelas de stress.
+9. `var_es_historico` aceita `confianca` fora de [0,1] (ex: 1.5, -0.1) silenciosamente, sem validar — clampa pro mesmo resultado do limite válido. Baixo risco (função interna, nunca exposta a input de usuário), mas sem guarda explícita. Achado no PAVC audit 2026-07-05.
+10. `_utc_naive`/`_com_utc` (`src/repositorio.py`) assumem implicitamente que `datetime` sem timezone já está em UTC, sem validar. Se código futuro passar naive em horário local, persiste silenciosamente errado. Achado no PAVC audit 2026-07-05.
 
 ## Escopo negativo (ADR-0003)
 

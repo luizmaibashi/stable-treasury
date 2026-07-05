@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from .db import peg_prices, risk_snapshots
 
@@ -34,9 +35,19 @@ def salvar_precos(engine, coingecko_id: str, pontos: list[tuple[datetime, float]
             for ts, price in pontos
             if _utc_naive(ts) not in ja_tem
         ]
-        if novos:
-            conn.execute(peg_prices.insert(), novos)  # insert em lote (executemany)
-        return len(novos)
+        inseridos = 0
+        for linha in novos:
+            # savepoint por linha: se outra transação inseriu esse (id, ts) entre
+            # o SELECT acima e este INSERT (TOCTOU sob concorrência), só essa
+            # linha aborta — a transação externa continua e o ponto fica correto
+            # (já foi inserido pelo concorrente, então "0 inseridos" está certo).
+            try:
+                with conn.begin_nested():
+                    conn.execute(peg_prices.insert(), [linha])
+                inseridos += 1
+            except IntegrityError:
+                pass
+        return inseridos
 
 
 def ler_serie_precos(engine, coingecko_id: str) -> list[tuple[datetime, float]]:

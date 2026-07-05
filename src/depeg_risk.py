@@ -62,6 +62,10 @@ def classificar_risco_e_teto(es: float) -> tuple[str, float]:
 
 
 def var_es_historico(retornos: np.ndarray, confianca: float = 0.99) -> tuple[float, float]:
+    if len(retornos) == 0:
+        # falha alta e clara: retornar (0.0, 0.0) mentiria "risco zero" quando
+        # na verdade é "sem dado pra concluir nada" (achado do PAVC audit).
+        raise ValueError("var_es_historico recebeu array de retornos vazio — sem dado pra calcular risco")
     perdas = -retornos
     perdas_ordenadas = np.sort(perdas)[::-1]
     n = len(perdas_ordenadas)
