@@ -54,9 +54,10 @@
 
 | ADR | Decisão | Status |
 |-----|---------|--------|
-| 0001 | Fontes de dados gratuitas (CoinGecko + Etherscan + BCB) | Proposed |
+| 0001 | Fontes de dados gratuitas (CoinGecko + Etherscan + BCB); estendido pelo 0003 (DefiLlama) | Accepted |
 | 0002 | Arquitetura Streamlit + módulos Python | Proposed |
 | 0003 | Pivot Liquidity Optimizer → Depeg Risk Engine + infra Postgres | Accepted |
+| 0004 | Parâmetros e calibração do Depeg Risk Engine (faixas, confiança 97%, janela 90d) | Accepted |
 
 ---
 

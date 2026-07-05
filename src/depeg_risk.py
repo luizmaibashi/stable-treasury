@@ -31,10 +31,10 @@ def desvio_peg(precos: list[float]) -> np.ndarray:
     return np.array(precos) - 1.0
 
 
-# faixas calibradas com ES real dos 2 eventos históricos (Módulo 3/4b):
-# USDC-SVB (recuperável) = 1,76% ES -> fica em "baixo"
-# UST (catastrófico)     = 99,32% ES -> fica em "alto"
-# faixa "medio" é buffer de segurança pra cenário grave não observado em stablecoin fiat-backed
+# faixas calibradas com ES real dos 2 eventos históricos — justificativa completa
+# (cortes, tetos, confiança 97%, janela 90d) documentada no ADR-0004:
+# USDC-SVB (recuperável) = 1,76% ES -> "baixo"; UST (catastrófico) = 99,32% ES -> "alto".
+# "medio" é buffer conservador pra cenário grave não observado em stablecoin fiat-backed.
 FAIXAS_RISCO = [
     ("baixo", 0.05, 0.60),
     ("medio", 0.30, 0.30),
@@ -65,6 +65,8 @@ def var_es_historico(retornos: np.ndarray, confianca: float = 0.99) -> tuple[flo
 def avaliar_risco_atual(
     coingecko_id: str, dias: int = 90, confianca: float = 0.97
 ) -> tuple[str, float, float]:
+    # dias=90 (1 trimestre, casa com cadência de attestation e regime atual) e
+    # confianca=0.97 (alinhado a Basel FRTB, ES 97,5%) — justificativa no ADR-0004
     inicio = int(time.time()) - dias * 86400
     precos = historico_preco_peg(coingecko_id, inicio, dias=dias)
     if len(precos) < 2:
