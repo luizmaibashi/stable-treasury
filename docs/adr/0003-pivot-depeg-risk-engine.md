@@ -83,4 +83,5 @@ Essa correção evita construir o Depeg Risk Engine sobre uma fonte que não alc
 
 - `docs/audit/pavc_audit.md` (falhas que motivaram o pivot)
 - `docs/adr/0001-fontes-de-dados.md`, `docs/adr/0002-arquitetura-streamlit-modulos.md`
-- `AGENTS.md` (Linguagem Ubíqua — será estendida com termos: VaR, Expected Shortfall, depeg, proof-of-reserve)
+- `docs/adr/0004-parametros-depeg-risk-engine.md` (calibração e parâmetros do motor de risco)
+- `AGENTS.md` (Linguagem Ubíqua — estendida com termos: VaR, Expected Shortfall, depeg, proof-of-reserve, attestation)

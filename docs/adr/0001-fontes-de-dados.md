@@ -1,7 +1,7 @@
 # ADR-0001: Fontes de dados gratuitas (CoinGecko + Etherscan + BCB SGS)
 
 **Data**: 2026-07-04
-**Status**: Proposed
+**Status**: Accepted (estendido pelo ADR-0003 §5b — DefiLlama para série histórica de peg)
 **Contexto**: StableTreasury
 
 ---
@@ -72,12 +72,14 @@ O StableTreasury precisa de 3 tipos de dado externo para funcionar sem custo ope
 ## 5. IMPACTO & VALIDAÇÃO
 
 **Métrica de sucesso:**
-- `test_coletor_precos.py`: preço USDT difere < 0.5% do preço reportado pelo CoinGecko no mesmo instante
-- `test_ptax.py`: câmbio BCB SGS difere < 0.1% da cotação do dia
+- Wrappers em `src/coletor_precos.py` retornam preço/câmbio reais das APIs, com fallback quando fora do ar
+- Cobertura de comportamento: `tests/test_comparador.py` e `tests/test_depeg_risk.py` exercitam o
+  fluxo com dados reais dessas fontes (não há suíte dedicada `test_coletor_precos.py`)
 
-**Monitoramento:**
-- Se CoinGecko não responder (HTTP 429): fallback para cache local de até 1h
-- Se BCB SGS estiver fora do ar: fallback para AwesomeAPI (secundário)
+**Monitoramento (fallbacks implementados em `src/coletor_precos.py`):**
+- CoinGecko fora do ar (HTTP 429): `preco_stablecoin` retorna None → comparador usa PTAX + spread
+- Etherscan/PolygonScan sem chave: gas fee cai em fallback fixo de gwei
+- BCB SGS fora do ar: `ptax_venda` retorna None → fallback 5.0
 
 ---
 
