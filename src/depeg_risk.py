@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import datetime, timezone
 
 import numpy as np
 import requests
@@ -9,7 +10,10 @@ logger = logging.getLogger(__name__)
 DEFILLAMA_CHART_URL = "https://coins.llama.fi/chart/coingecko:{id}"
 
 
-def historico_preco_peg(coingecko_id: str, inicio_unix: int, dias: int = 730) -> list[float]:
+def historico_pontos_peg(
+    coingecko_id: str, inicio_unix: int, dias: int = 730
+) -> list[tuple[datetime, float]]:
+    # versão com timestamp: retorna (datetime UTC, preço) — base pra persistência.
     url = DEFILLAMA_CHART_URL.format(id=coingecko_id)
     params = {"start": inicio_unix, "span": dias, "period": "1d"}
     try:
@@ -18,10 +22,18 @@ def historico_preco_peg(coingecko_id: str, inicio_unix: int, dias: int = 730) ->
         data = resp.json()
         chave = f"coingecko:{coingecko_id}"
         pontos = data["coins"][chave]["prices"]
-        return [p["price"] for p in pontos]
+        return [
+            (datetime.fromtimestamp(p["timestamp"], tz=timezone.utc), float(p["price"]))
+            for p in pontos
+        ]
     except Exception as e:
         logger.warning(f"Falha ao consultar histórico de peg via DefiLlama: {e}")
         return []
+
+
+def historico_preco_peg(coingecko_id: str, inicio_unix: int, dias: int = 730) -> list[float]:
+    # atalho pros consumidores que só querem a série de preços (ex: avaliar_risco_atual)
+    return [price for _, price in historico_pontos_peg(coingecko_id, inicio_unix, dias)]
 
 
 def desvio_peg(precos: list[float]) -> np.ndarray:

@@ -8,6 +8,15 @@ from src.compliance import validar_transacao
 from src.otimizador import otimizar_alocacao
 from src.coletor_precos import preco_stablecoin, ptax_venda
 from src.depeg_risk import avaliar_risco_atual
+from src.db import get_engine
+from src.repositorio import ler_serie_risco
+
+
+@st.cache_resource
+def _engine():
+    # cache_resource: reusa 1 engine entre reruns do Streamlit (não reabre conexão a cada clique)
+    return get_engine()
+
 
 st.set_page_config(
     page_title="StableTreasury",
@@ -18,10 +27,11 @@ st.set_page_config(
 st.title("🏦 StableTreasury")
 st.markdown("Motor de decisão para tesourarias — compara trilhos, valida compliance, otimiza liquidez.")
 
-tab_rails, tab_compliance, tab_liquidity, tab_config = st.tabs([
+tab_rails, tab_compliance, tab_liquidity, tab_risco, tab_config = st.tabs([
     "📊 Rail Comparator",
     "🔒 Compliance Filter",
     "💧 Liquidity Optimizer",
+    "📈 Histórico de Risco",
     "⚙️ Config",
 ])
 
@@ -183,6 +193,45 @@ with tab_liquidity:
             f"→ teto de alocação em stablecoin = {teto_risco:.0%} (calibrado com ES real dos eventos "
             "USDC-SVB mar/2023 e UST mai/2022 — ver ADR-0003)"
         )
+
+with tab_risco:
+    st.header("Histórico de Risco de Depeg (ES ao longo do tempo)")
+    st.markdown(
+        "Série reconstruída sobre preço histórico real (DefiLlama, desde 2022) e persistida no "
+        "banco. Cada ponto é o Expected Shortfall calculado sobre a janela de 90 dias terminada "
+        "naquela data — mostra o que o modelo **teria feito** em cada momento (ADR-0004)."
+    )
+
+    ativo = st.selectbox("Stablecoin", options=["usd-coin", "tether"],
+                         format_func=lambda x: {"usd-coin": "USDC", "tether": "USDT"}[x])
+
+    try:
+        serie = ler_serie_risco(_engine(), ativo)
+    except Exception as e:
+        serie = []
+        st.warning(f"Banco indisponível ({e}). Rode `docker compose up -d` e a ingestão histórica.")
+
+    if not serie:
+        st.info("Sem snapshots de risco para este ativo. Rode a ingestão + geração de snapshots.")
+    else:
+        import polars as pl
+        df = pl.DataFrame({
+            "data": [s["ts"] for s in serie],
+            "ES (97%)": [s["es"] for s in serie],
+            "VaR (97%)": [s["var"] for s in serie],
+        })
+        st.line_chart(df, x="data", y=["ES (97%)", "VaR (97%)"])
+
+        pico = max(serie, key=lambda s: s["es"])
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Snapshots", len(serie))
+        c2.metric("Pico de ES", f"{pico['es']:.2%}", help=f"em {pico['ts'].date()}")
+        c3.metric("Faixa no pico", pico["faixa"])
+        st.caption(
+            f"Pico de risco em **{pico['ts'].date()}** (ES {pico['es']:.2%}) — para USDC, "
+            "coincide com a janela do colapso do SVB (mar/2023), detectado pelo modelo sem ajuste manual."
+        )
+
 
 with tab_config:
     st.header("Configuração / Dados ao Vivo")
