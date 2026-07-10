@@ -46,6 +46,9 @@
 | **Risk Snapshot** | Registro de risco (ES/VaR/faixa/teto) calculado num momento; série alimenta o gráfico histórico |
 | **Backtest** | Reconstrução do risco ao longo do tempo (ES rolante) sobre preço histórico real |
 | **Dev/prod parity** | Mesmo motor de banco (Postgres) local e em produção, evitando surpresa de dialeto |
+| **Neon** | Provedor de Postgres gerenciado (nuvem), free tier — usado em produção pra manter dev/prod parity do ADR-0005 sem custo |
+| **Cold start (Neon)** | Free tier pausa o banco após inatividade; primeira consulta depois da pausa demora alguns segundos a mais pra "acordar" |
+| **DATABASE_URL** | Variável de ambiente que aponta pro banco (Docker local em dev, Neon em prod) — trocar só ela muda o ambiente, código não muda |
 
 ---
 
@@ -68,6 +71,7 @@
 | 0003 | Pivot Liquidity Optimizer → Depeg Risk Engine + infra Postgres | Accepted |
 | 0004 | Parâmetros e calibração do Depeg Risk Engine (faixas, confiança 97%, janela 90d) | Accepted |
 | 0005 | Persistência com SQLAlchemy (fonte única) + Postgres em Docker | Accepted |
+| 0006 | Deploy público via Streamlit Community Cloud + Neon (estende dev/prod parity do 0005) | Accepted |
 
 ---
 
