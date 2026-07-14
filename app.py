@@ -52,6 +52,8 @@ with tab_rails:
             "Tipo de operação",
             options=[
                 "remessa_internacional_terceiros",
+                "importacao_bens",
+                "importacao_servicos",
                 "remessa_mesma_titularidade",
                 "investimento_exterior",
                 "cartao_internacional",
@@ -59,6 +61,7 @@ with tab_rails:
                 "stablecoin",
             ],
             format_func=lambda x: x.replace("_", " ").title(),
+            help="A economia do stablecoin depende do IOF: máxima em remessa/serviços (3,5%), quase nula em importação de bens (isento — Decreto 6.306 Art. 15-B). ADR-0011.",
         )
         efx = st.checkbox(
             "Operação de eFX (câmbio eletrônico)",
@@ -296,11 +299,11 @@ with tab_risco:
             "coincide com a janela do colapso do SVB (mar/2023), detectado pelo modelo sem ajuste manual."
         )
         from src.depeg_risk import tamanho_cauda
-        n_cauda = tamanho_cauda(90, 0.97)
         st.caption(
-            f"⚠️ Robustez: com janela de 90 dias e confiança 97%, o ES é a média de apenas "
-            f"**{n_cauda} piores dias** (cauda rasa) — estimador sensível a outlier. Combinado com a "
-            "granularidade diária (suaviza mínimo intra-dia), o ES de cauda pode ser subestimado (F4/débito #8)."
+            "ℹ️ Granularidade (ADR-0011): o **risco atual** (aba Liquidez) usa série **horária** "
+            f"— 90 dias = ~2160 pontos, cauda de **~{tamanho_cauda(2160, 0.97)} piores horas** e captura "
+            "o mínimo intra-dia real (USDC tocou 0,8767 em mar/2023). Este **gráfico histórico** usa "
+            "série diária (trend de anos, onde precisão de cauda importa menos)."
         )
 
 

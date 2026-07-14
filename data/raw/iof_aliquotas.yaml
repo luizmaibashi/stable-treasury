@@ -4,8 +4,19 @@
 # não assessoria jurídica ou fiscal.
 
 operacoes:
+  - tipo: "importacao_bens"
+    descricao: "Pagamento de importação de bens (comércio exterior)"
+    aliquota_percent: 0.0
+    observacao: "ISENTO — Decreto 6.306/2007 Art. 15-B §1º, I e II (câmbio de comércio exterior)"
+    decreto: "Decreto 6.306/2007 Art. 15-B"
+
+  - tipo: "importacao_servicos"
+    descricao: "Pagamento de importação de serviços ao exterior"
+    aliquota_percent: 0.38
+    decreto: "Decreto 6.306/2007 Art. 15-B"
+
   - tipo: "remessa_internacional_terceiros"
-    descricao: "Remessa internacional para terceiros (serviços, pagamentos)"
+    descricao: "Remessa internacional para terceiros (serviços, pagamentos sem finalidade de investimento)"
     aliquota_percent: 3.5
     decreto: "Decreto 12.499/2025"
 

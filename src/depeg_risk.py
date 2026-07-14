@@ -8,20 +8,17 @@ import requests
 logger = logging.getLogger(__name__)
 
 DEFILLAMA_CHART_URL = "https://coins.llama.fi/chart/coingecko:{id}"
+MAX_PONTOS_POR_CHAMADA = 500  # limite duro da DefiLlama por requisição
 
 
-def historico_pontos_peg(
-    coingecko_id: str, inicio_unix: int, dias: int = 730
-) -> list[tuple[datetime, float]]:
-    # versão com timestamp: retorna (datetime UTC, preço) — base pra persistência.
+def _fetch_chart(coingecko_id: str, inicio_unix: int, span: int, period: str) -> list[tuple[datetime, float]]:
+    # chamada única à DefiLlama (span = nº de períodos, ≤ 500). Base de tudo.
     url = DEFILLAMA_CHART_URL.format(id=coingecko_id)
-    params = {"start": inicio_unix, "span": dias, "period": "1d"}
+    params = {"start": inicio_unix, "span": span, "period": period}
     try:
         resp = requests.get(url, params=params, timeout=10)
         resp.raise_for_status()
-        data = resp.json()
-        chave = f"coingecko:{coingecko_id}"
-        pontos = data["coins"][chave]["prices"]
+        pontos = resp.json()["coins"][f"coingecko:{coingecko_id}"]["prices"]
         return [
             (datetime.fromtimestamp(p["timestamp"], tz=timezone.utc), float(p["price"]))
             for p in pontos
@@ -29,6 +26,45 @@ def historico_pontos_peg(
     except Exception as e:
         logger.warning(f"Falha ao consultar histórico de peg via DefiLlama: {e}")
         return []
+
+
+def historico_pontos_peg(
+    coingecko_id: str, inicio_unix: int, dias: int = 730
+) -> list[tuple[datetime, float]]:
+    # versão diária com timestamp: retorna (datetime UTC, preço) — base pra persistência/backtest.
+    return _fetch_chart(coingecko_id, inicio_unix, dias, "1d")
+
+
+def janelas_horarias(
+    inicio_unix: int, fim_unix: int, max_pontos: int = MAX_PONTOS_POR_CHAMADA
+) -> list[tuple[int, int]]:
+    # quebra [inicio, fim] em janelas de ≤ max_pontos HORAS (limite da API). Lógica pura,
+    # sem rede (testável). Retorna [(start_unix, span_horas)].
+    janelas = []
+    cursor = inicio_unix
+    passo = max_pontos * 3600
+    while cursor < fim_unix:
+        horas_restantes = (fim_unix - cursor) // 3600
+        span = min(max_pontos, horas_restantes) or 1
+        janelas.append((cursor, span))
+        cursor += passo
+    return janelas
+
+
+def historico_pontos_peg_horario(
+    coingecko_id: str, dias: int = 90
+) -> list[tuple[datetime, float]]:
+    # série HORÁRIA paginada (respeita o teto de 500 pontos/chamada). Usada pro risco
+    # ATUAL, onde a robustez de cauda importa: 90 dias horário = ~2160 pontos (cauda de
+    # ~65 a 97%) vs. 90 diário (cauda de 3). Deduplicado e ordenado por timestamp.
+    fim = int(time.time())
+    inicio = fim - dias * 86400
+    vistos: dict[datetime, float] = {}
+    for start, span in janelas_horarias(inicio, fim):
+        for ts, price in _fetch_chart(coingecko_id, start, span, "1h"):
+            vistos[ts] = price
+        time.sleep(0.3)  # cortesia com a API pública
+    return sorted(vistos.items())
 
 
 def historico_preco_peg(coingecko_id: str, inicio_unix: int, dias: int = 730) -> list[float]:
@@ -86,12 +122,22 @@ def var_es_historico(retornos: np.ndarray, confianca: float = 0.99) -> tuple[flo
 
 
 def avaliar_risco_atual(
-    coingecko_id: str, dias: int = 90, confianca: float = 0.97
+    coingecko_id: str, dias: int = 90, confianca: float = 0.97, granularidade: str = "1h"
 ) -> tuple[str, float, float]:
     # dias=90 (1 trimestre, casa com cadência de attestation e regime atual) e
-    # confianca=0.97 (alinhado a Basel FRTB, ES 97,5%) — justificativa no ADR-0004
-    inicio = int(time.time()) - dias * 86400
-    precos = historico_preco_peg(coingecko_id, inicio, dias=dias)
+    # confianca=0.97 (alinhado a Basel FRTB, ES 97,5%) — justificativa no ADR-0004.
+    # granularidade="1h" (ADR-0011): 90 dias horário = ~2160 pontos → cauda de ~65 a 97%
+    # (robusta) e captura o mínimo intra-dia real (USDC tocou 0,8767 em mar/2023), que a
+    # série diária suavizava pra ~0,96. Cai pra diário se o horário vier insuficiente.
+    if granularidade == "1h":
+        precos = [p for _, p in historico_pontos_peg_horario(coingecko_id, dias=dias)]
+        if len(precos) < 2:  # horário indisponível → tenta diário antes de desistir
+            inicio = int(time.time()) - dias * 86400
+            precos = historico_preco_peg(coingecko_id, inicio, dias=dias)
+    else:
+        inicio = int(time.time()) - dias * 86400
+        precos = historico_preco_peg(coingecko_id, inicio, dias=dias)
+
     if len(precos) < 2:
         # sem dado (API fora do ar): fallback conservador = faixa "medio"
         return "medio", 0.30, 0.0
