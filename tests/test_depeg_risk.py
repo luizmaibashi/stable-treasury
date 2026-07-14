@@ -21,6 +21,18 @@ def test_tamanho_cauda_expoe_robustez_rasa():
     assert tamanho_cauda(10, 0.999) == 1  # piso de 1 mesmo com confiança altíssima
 
 
+def test_horario_aprofunda_a_cauda(monkeypatch):
+    # ADR-0011: 90 dias horário (~2160 pts) dá cauda de ~64, não 3 (diário). Robustez F4/#8.
+    from src.depeg_risk import janelas_horarias
+    assert tamanho_cauda(2160, 0.97) == 65   # vs. 3 no diário
+    # a paginação horária cobre 90 dias em janelas de <=500h respeitando o limite da API
+    fim = 90 * 86400
+    janelas = janelas_horarias(0, fim)
+    assert all(span <= 500 for _, span in janelas)
+    horas_cobertas = sum(span for _, span in janelas)
+    assert horas_cobertas >= 90 * 24 - 500  # cobre ~todo o período (folga de 1 janela)
+
+
 def test_var_es_captura_cauda_que_var_sozinho_perde():
     # 8 dias normais + 2 dias ruins: -10% (choque "USDC-like") e -50% (choque "UST-like")
     retornos = np.array([0.0] * 8 + [-0.1, -0.5])
