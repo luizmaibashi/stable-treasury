@@ -11,6 +11,14 @@ COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price"
 ETHERSCAN_URL = "https://api.etherscan.io/api"
 POLYGONSCAN_URL = "https://api.polygonscan.com/api"
 BCB_SGS_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.10813/dados"
+# CDI anualizado (série 4389) — referência de cash-equivalent em BRL (ADR-0010)
+BCB_CDI_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/1"
+# T-bill (US Treasury, avg interest rate) — referência de cash-equivalent em USD (ADR-0010)
+TREASURY_URL = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/avg_interest_rates"
+
+# Fallbacks das taxas de referência, se as APIs caírem (valores observados em 2026-07-14)
+CDI_FALLBACK_PCT = 14.15
+TBILL_FALLBACK_PCT = 3.70
 
 # Fallback ÚNICO de câmbio USD/BRL quando a PTAX (BCB SGS) está indisponível.
 # Fonte única evita divergência entre módulos (comparador vs otimizador calculavam
@@ -117,6 +125,42 @@ def preco_matic() -> float | None:
     except Exception as e:
         logger.warning(f"Falha ao consultar MATIC via CoinGecko: {e}")
         return None
+
+
+@lru_cache(maxsize=1)
+def taxa_cdi() -> float:
+    # CDI anualizado (% a.a.) — referência de rendimento de cash-equivalent em BRL.
+    try:
+        resp = requests.get(BCB_CDI_URL, params={"formato": "json"}, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        if isinstance(data, list) and data:
+            return float(data[-1]["valor"])
+    except Exception as e:
+        logger.warning(f"Falha ao consultar CDI via BCB SGS (fallback {CDI_FALLBACK_PCT}%): {e}")
+    return CDI_FALLBACK_PCT
+
+
+@lru_cache(maxsize=1)
+def taxa_tbill() -> float:
+    # T-bill (% a.a.) — referência de rendimento de cash-equivalent em USD.
+    try:
+        resp = requests.get(
+            TREASURY_URL,
+            params={
+                "filter": "security_desc:eq:Treasury Bills",
+                "sort": "-record_date",
+                "page[size]": "1",
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        registros = resp.json().get("data", [])
+        if registros:
+            return float(registros[0]["avg_interest_rate_amt"])
+    except Exception as e:
+        logger.warning(f"Falha ao consultar T-bill via US Treasury (fallback {TBILL_FALLBACK_PCT}%): {e}")
+    return TBILL_FALLBACK_PCT
 
 
 @lru_cache(maxsize=1)

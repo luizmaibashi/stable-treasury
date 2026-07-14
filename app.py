@@ -6,6 +6,7 @@ load_dotenv()
 from src.comparador import comparar_custos, gerar_faturas_sinteticas
 from src.compliance import validar_transacao
 from src.otimizador import otimizar_alocacao
+from src.custo_carrego import custo_oportunidade_reserva
 from src.coletor_precos import preco_stablecoin, ptax_venda
 from src.depeg_risk import avaliar_risco_atual
 from src.db import get_engine
@@ -182,6 +183,10 @@ with tab_liquidity:
             "Previsão pagamento cross-border USD (30d)", min_value=0.0, value=200000.0, step=10000.0,
             help="Fluxo de pagamento a fornecedores/parceiros no exterior. Dimensiona o capital de giro em trânsito no trilho stablecoin (ADR-0009).",
         )
+        yield_atual = st.number_input(
+            "Rendimento atual do caixa (% a.a.)", min_value=0.0, max_value=30.0, value=0.0, step=0.5,
+            help="Quanto sua reserva já rende hoje. 0% = conta não remunerada. Usado pra calcular o custo de carrego vs. CDI/T-bill (ADR-0010).",
+        )
 
     if st.button("Otimizar alocação", type="primary"):
         with st.spinner("Avaliando risco de depeg (VaR/ES sobre histórico real USDC)..."):
@@ -214,6 +219,37 @@ with tab_liquidity:
             "Reserva de emergência em **cash** (BRL) — stablecoin NÃO é caixa equivalente "
             "(US GAAP/IFRS, ASU 2023-08) e entra só como capital de giro no trilho, com teto de "
             "política (5%), teto de depeg e haircut pelo ES (ADR-0009). Âncora de escala: Nubank FY2025."
+        )
+
+        # --- 3º pilar: custo de carrego da reserva (ADR-0010) ---
+        st.divider()
+        st.subheader("💸 Custo de Oportunidade da Reserva")
+        with st.spinner("Consultando CDI (BCB) e T-bill (US Treasury)..."):
+            carrego = custo_oportunidade_reserva(
+                reserva_brl=resultado["brl_target"],
+                posicao_usd=resultado["manter_usd"],
+                yield_atual_pct=yield_atual,
+            )
+
+        col_o1, col_o2, col_o3 = st.columns(3)
+        col_o1.metric("CDI (BRL)", f"{carrego['cdi_pct']:.2f}% a.a.")
+        col_o2.metric("T-bill (USD)", f"{carrego['tbill_pct']:.2f}% a.a.")
+        col_o3.metric(
+            "Deixado na mesa", f"R$ {carrego['gap_total_anual_brl']:,.0f}/ano",
+            help=f"≈ R$ {carrego['gap_total_diario_brl']:,.0f}/dia",
+        )
+
+        st.warning(
+            f"A reserva está correta (cash), mas **parada rendendo {yield_atual:.1f}%**. "
+            f"Movendo para fundo DI / money market — que **continua sendo cash-equivalent**, "
+            f"sem mudar o perfil de risco nem o compliance — você captura "
+            f"**R$ {carrego['gap_total_anual_brl']:,.0f}/ano** sem risco adicional."
+        )
+        st.caption(
+            "Custo de carrego = valor parado × (taxa de referência − yield atual). "
+            "CDI via BCB SGS 4389, T-bill via US Treasury (fiscaldata) — ambos ao vivo. "
+            "Este é o 3º pilar (Capital Markets & Funding): o capital dorme na reserva, "
+            "não no giro em stablecoin (ADR-0010, supersede o ADR-0007 §B)."
         )
 
         st.caption(

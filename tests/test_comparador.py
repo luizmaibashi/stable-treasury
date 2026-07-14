@@ -1,10 +1,32 @@
 import polars as pl
 try:
-    from src.comparador import comparar_custos, gerar_faturas_sinteticas
+    from src.comparador import comparar_custos, gerar_faturas_sinteticas, slippage_por_volume
 except ImportError:
     import sys
     sys.path.insert(0, ".")
-    from src.comparador import comparar_custos, gerar_faturas_sinteticas
+    from src.comparador import comparar_custos, gerar_faturas_sinteticas, slippage_por_volume
+
+
+# --- ponto C (ADR-0010): slippage por volume, aproximação documentada ---
+
+def test_slippage_zero_para_volume_pequeno():
+    assert slippage_por_volume(50_000) == 0.0
+
+
+def test_slippage_monotonico_com_volume():
+    # propriedade econômica: converter mais nunca sofre MENOS atrito proporcional
+    volumes = [50_000, 500_000, 5_000_000, 50_000_000]
+    slips = [slippage_por_volume(v) for v in volumes]
+    assert slips == sorted(slips)
+    assert slips[-1] > slips[0]
+
+
+def test_slippage_encarece_custo_percentual_do_trilho_stablecoin():
+    pequeno = comparar_custos(50_000, caso_uso="cross_border")
+    grande = comparar_custos(50_000_000, caso_uso="cross_border")
+    pct_peq = pequeno.filter(pl.col("trilho") == "USDT (Polygon)")["custo_percent"][0]
+    pct_gra = grande.filter(pl.col("trilho") == "USDT (Polygon)")["custo_percent"][0]
+    assert pct_gra > pct_peq  # volume grande paga mais % de conversão
 
 
 # --- estrutura básica (caso_uso cross_border é o default) ---

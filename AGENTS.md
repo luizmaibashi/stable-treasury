@@ -14,6 +14,7 @@
 - `src/coletor_precos.py` — Coleta de preços on-chain (CoinGecko, Etherscan)
 - `src/depeg_risk.py` — Depeg Risk Engine: VaR/ES sobre histórico de peg (DefiLlama), faixas de risco
 - `src/perfil_referencia.py` — perfil de tesouraria do demo, âncora de escala em dado real (Nubank FY2025) vs. premissa ilustrativa (ADR-0009)
+- `src/custo_carrego.py` — 3º pilar (Capital Markets & Funding): custo de oportunidade da reserva de cash (BRL vs CDI, USD vs T-bill) — ADR-0010
 - `src/db.py` — Schema SQLAlchemy (fonte única): tabelas `peg_prices` e `risk_snapshots`
 - `src/repositorio.py` — Camada de persistência agnóstica de dialeto (SQLite/Postgres)
 - `src/ingestao.py` — Backfill histórico paginado + geração de snapshots de risco (backtest)
@@ -60,6 +61,8 @@
 | **Cash equivalent** | Caixa e equivalentes (depósito à vista, T-bill ≤90d). Stablecoin NÃO é cash equivalent (US GAAP/IFRS, ASU 2023-08) → excluída da reserva de emergência (ADR-0009) |
 | **Cap de política** | Limite de sleeve de ativos digitais aprovável por board (1–5%; default 5%) — um dos tetos sobre a stablecoin (ADR-0009) |
 | **Haircut de liquidez** | Desconto aplicado ao valor de liquidez da stablecoin pelo ES do Depeg Engine: `valor × (1 − ES)` (ADR-0009) |
+| **Custo de carrego** | O que a reserva de cash deixa de render por estar parada: `valor × (taxa_referência − yield_atual)`. Referência: CDI (BRL) / T-bill (USD) — ambos cash-equivalents, capturáveis sem risco adicional (ADR-0010) |
+| **3º pilar (Capital Markets & Funding)** | O capital dorme na **reserva**, não no giro em stablecoin (que transita em dias). Por isso o custo de oportunidade se mede no cash, não na cripto (ADR-0010 supersede ADR-0007 §B) |
 
 ---
 
@@ -83,9 +86,10 @@
 | 0004 | Parâmetros e calibração do Depeg Risk Engine (faixas, confiança 97%, janela 90d) | Accepted |
 | 0005 | Persistência com SQLAlchemy (fonte única) + Postgres em Docker | Accepted |
 | 0006 | Deploy público via Streamlit Community Cloud + Neon (estende dev/prod parity do 0005) | Accepted |
-| 0007 | Opportunity Cost (yield, DefiLlama) + heurística de slippage por volume; hedge real (put option) rejeitado por violar escopo negativo do ADR-0003 | Accepted |
+| 0007 | Opportunity Cost (yield, DefiLlama) + heurística de slippage por volume; hedge real (put option) rejeitado por violar escopo negativo do ADR-0003 | **Partially Superseded** (§B, pelo 0010) |
 | 0008 | Modelo de custo honesto do Rail Comparator: spread on/off-ramp no trilho stablecoin + segmentação por caso de uso + religação do filtro eFX (auditoria F1/F2/F7) | Accepted |
 | 0009 | Conformidade com tesouraria corporativa: reserva em cash-only (stablecoin não é caixa equivalente), stablecoin como working capital no trilho com teto triplo + haircut ES; âncora de escala Nubank FY2025 | Accepted |
+| 0010 | 3º pilar reenquadrado: custo de carrego da **reserva de cash** (BRL vs CDI, USD vs T-bill), não yield de stablecoin (premissa morta pelo 0009). Implementa também o slippage por volume (ponto C do 0007) | Accepted |
 
 ---
 
@@ -108,6 +112,9 @@
 15. `DIAS_SETTLEMENT` (5) e `CAP_POLITICA_STABLECOIN` (5%) em `otimizador.py` são premissas de política, não medidas (ADR-0009). Configuráveis, documentadas.
 16. ES de robustez rasa: janela 90d @ 97% = cauda de 3 amostras (`tamanho_cauda`), estimador sensível a outlier. Exposto na UI como disclaimer (F4); combina com débito #8.
 17. Perfil de referência (`perfil_referencia.py`) mistura dado real de escala (Nubank FY2025, com fonte) e premissa de fluxo cross-border (ilustrativa). Cada campo rotulado; Nubank é banco, usado só como âncora de ordem de grandeza (ADR-0009).
+18. `yield_atual` do caixa (default 0%, `custo_carrego.py`) assume conta não remunerada — premissa; tesourarias grandes já remuneram parte do caixa. Input configurável no dashboard (ADR-0010).
+19. Custo de **float do trilho** (capital preso durante os dias de settlement, rendendo 0%) não é modelado — é pequeno e tende a se cancelar entre trilhos (Wire também é T+2/T+5). Decisão consciente do ADR-0010.
+20. Slippage por volume (`FAIXAS_SLIPPAGE`, `comparador.py`) é acréscimo por faixa, **não** modelo de order book real (ADR-0010, ponto C do 0007). Herda o status do débito #11.
 
 ## Escopo negativo (ADR-0003)
 
