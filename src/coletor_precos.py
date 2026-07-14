@@ -12,6 +12,11 @@ ETHERSCAN_URL = "https://api.etherscan.io/api"
 POLYGONSCAN_URL = "https://api.polygonscan.com/api"
 BCB_SGS_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.10813/dados"
 
+# Fallback ÚNICO de câmbio USD/BRL quando a PTAX (BCB SGS) está indisponível.
+# Fonte única evita divergência entre módulos (comparador vs otimizador calculavam
+# câmbio diferente pro mesmo instante — achado F5 da auditoria 2026-07-14).
+PTAX_FALLBACK = 5.7
+
 
 def preco_stablecoin(moeda: str = "usdt") -> float | None:
     if moeda == "usdt":

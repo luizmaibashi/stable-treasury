@@ -60,6 +60,13 @@ auditável por comitê. "Está na faixa de risco médio" é defensável numa mes
 "a fórmula deu 31,4%" não é. Espelha o rating de crédito bancário (AAA/BB/CCC).
 (Código: `src/depeg_risk.py::FAIXAS_RISCO` e `classificar_risco_e_teto`.)
 
+> **Nota de honestidade sobre a faixa "médio" (auditoria 2026-07-14, F8):** os cortes 5% e 30%
+> são ancorados em apenas 2 pontos empíricos — USDC-SVB (1,76%, cai em "baixo") e UST (99,3%,
+> cai em "alto"). A faixa "médio" (5%–30%) **não contém nenhum evento histórico observado**: é
+> interpolação de bom senso entre um caso recuperável e um catastrófico, não calibração direta.
+> Deve ser lida como *buffer conservador*, não como faixa validada por dado. Mais eventos reais
+> de depeg (ex: outra stablecoin fiat-backed sob stress) refinariam essa fronteira.
+
 ---
 
 ## 3. CONSEQUÊNCIAS
