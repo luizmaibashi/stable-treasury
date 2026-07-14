@@ -41,6 +41,12 @@ with tab_rails:
     col1, col2 = st.columns([1, 2])
     with col1:
         valor = st.number_input("Valor da fatura (BRL)", min_value=100, max_value=10_000_000, value=50000, step=1000)
+        caso_uso = st.radio(
+            "Caso de uso",
+            options=["cross_border", "domestico"],
+            format_func=lambda x: {"cross_border": "Cross-border (converte BRL↔USD)", "domestico": "Doméstico (BRL→BRL)"}[x],
+            help="PIX só serve pagamento doméstico; Wire/USDT/USDC só cross-border. A comparação só faz sentido entre trilhos do mesmo caso de uso (ADR-0008).",
+        )
         tipo_op = st.selectbox(
             "Tipo de operação",
             options=[
@@ -53,11 +59,16 @@ with tab_rails:
             ],
             format_func=lambda x: x.replace("_", " ").title(),
         )
+        efx = st.checkbox(
+            "Operação de eFX (câmbio eletrônico)",
+            value=False,
+            help="Se marcado, aplica a BCB 561: stablecoin proibido como trilho de liquidação em eFX (vigência out/2026).",
+        )
 
         if st.button("Comparar trilhos", type="primary"):
             with st.spinner("Consultando preços on-chain..."):
                 try:
-                    df = comparar_custos(valor, tipo_op)
+                    df = comparar_custos(valor, tipo_op, caso_uso=caso_uso, eletronico_cambio=efx)
                     st.session_state["df_custos"] = df
 
                     melhor = df[0]
@@ -83,6 +94,12 @@ with tab_rails:
                         },
                         hide_index=True,
                         width="stretch",
+                    )
+                    st.caption(
+                        "Custo do trilho stablecoin = spread on-ramp (BRL→USDT, prêmio real de "
+                        "mercado) + gas + spread off-ramp (USDT→USD, 0,3% fixo). Não é 'só gas' "
+                        "(ADR-0008). A economia vs. Wire existe porque o stablecoin dribla o IOF de "
+                        "eFX — arbitragem que a BCB 561 encerra em out/2026."
                     )
                 except Exception as e:
                     st.error(f"Erro ao comparar: {e}")
@@ -161,6 +178,10 @@ with tab_liquidity:
     with col_l2:
         gasto_30d = st.number_input("Previsão gasto BRL (30d)", min_value=0, value=150000, step=10000)
         recebimento_30d = st.number_input("Previsão recebimento USD (30d)", min_value=0.0, value=20000.0, step=5000.0)
+        pagamento_30d = st.number_input(
+            "Previsão pagamento cross-border USD (30d)", min_value=0.0, value=200000.0, step=10000.0,
+            help="Fluxo de pagamento a fornecedores/parceiros no exterior. Dimensiona o capital de giro em trânsito no trilho stablecoin (ADR-0009).",
+        )
 
     if st.button("Otimizar alocação", type="primary"):
         with st.spinner("Avaliando risco de depeg (VaR/ES sobre histórico real USDC)..."):
@@ -175,18 +196,25 @@ with tab_liquidity:
             saldo_usd=saldo_usd,
             previsao_gasto_brl_30d=gasto_30d,
             previsao_recebimento_usd_30d=recebimento_30d,
+            previsao_pagamento_usd_30d=pagamento_30d,
             faixa_risco_stablecoin=faixa_risco,
             teto_stablecoin=teto_risco,
+            es_stablecoin=es_atual,
         )
 
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("Saldo Total (eq. BRL)", f"R$ {resultado['saldo_total_equivalent_brl']:,.0f}")
         col_m2.metric("Meses de Reserva", f"{resultado['meses_reserva_brl']}")
-        col_m3.metric("Converter USDT → BRL", f"R$ {resultado['converter_usdt_para_brl']:,.0f}")
+        col_m3.metric("Converter → BRL (gap reserva)", f"R$ {resultado['converter_usdt_para_brl']:,.0f}")
 
         st.success(resultado["recomendacao_liquidez"])
         st.info(resultado["recomendacao_cambio"])
         st.info(resultado["sugestao"])
+        st.caption(
+            "Reserva de emergência em **cash** (BRL) — stablecoin NÃO é caixa equivalente "
+            "(US GAAP/IFRS, ASU 2023-08) e entra só como capital de giro no trilho, com teto de "
+            "política (5%), teto de depeg e haircut pelo ES (ADR-0009). Âncora de escala: Nubank FY2025."
+        )
 
         st.caption(
             f"Depeg Risk Engine: ES(97%) atual = {es_atual:.2%} → faixa **{faixa_risco}** "
@@ -231,6 +259,13 @@ with tab_risco:
             f"Pico de risco em **{pico['ts'].date()}** (ES {pico['es']:.2%}) — para USDC, "
             "coincide com a janela do colapso do SVB (mar/2023), detectado pelo modelo sem ajuste manual."
         )
+        from src.depeg_risk import tamanho_cauda
+        n_cauda = tamanho_cauda(90, 0.97)
+        st.caption(
+            f"⚠️ Robustez: com janela de 90 dias e confiança 97%, o ES é a média de apenas "
+            f"**{n_cauda} piores dias** (cauda rasa) — estimador sensível a outlier. Combinado com a "
+            "granularidade diária (suaviza mínimo intra-dia), o ES de cauda pode ser subestimado (F4/débito #8)."
+        )
 
 
 with tab_config:
@@ -257,4 +292,8 @@ with tab_config:
     col_c2.metric("PTAX venda", f"R$ {st.session_state.get('ptax', '—'):.4f}" if "ptax" in st.session_state else "R$ —")
     col_c3.metric("Spread estimado", "1.2–2.5%" if "usdt_brl" in st.session_state else "—")
 
-    st.caption("Dados on-chain via CoinGecko + Etherscan + BCB SGS. Cotações podem ter até 5 min de latência.")
+    st.caption(
+        "Preço via CoinGecko, câmbio via BCB SGS. Gas fee via Etherscan/PolygonScan **quando há API "
+        "key configurada** — sem key, o gas cai para uma faixa fixa estimada (não on-chain ao vivo). "
+        "Cotações podem ter até 5 min de latência (F6/ADR-0009)."
+    )
