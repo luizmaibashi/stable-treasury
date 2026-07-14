@@ -7,13 +7,6 @@
 # NOTA: Estas são regras codificadas a partir do texto público das resoluções.
 # Não constituem assessoria jurídica. Consulte um advogado para compliance real.
 
-TIPO_TRANSACAO = {
-    "eletronico_cambio": "eFX",
-    "remessa_internacional": "remessa",
-    "pagamento_domestico": "domestic",
-    "tesouraria_propria": "treasury",
-}
-
 MOEDAS_STABLECOIN = {"USDT", "USDC", "DAI", "BUSD", "TUSD"}
 
 
