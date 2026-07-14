@@ -14,9 +14,11 @@ Hoje: sem ferramentas. Tomorrow: **StableTreasury**.
 ## A Solução em 5 Camadas
 
 ### 1️⃣ Rail Comparator
-**Pergunta:** Qual trilho custa menos?  
-**Fórmula:** Spread FX + Tarifa + IOF + Gas Fee  
-**Exemplo:** R$ 50k → PIX R$ 0 vs. Wire R$ 3.129 (99,99% economia)
+**Pergunta:** Qual trilho custa menos, **entre os elegíveis ao caso de uso**?  
+**Fórmula (Wire):** Spread FX + Tarifa + IOF + Gas Fee  
+**Fórmula (stablecoin):** Spread on-ramp (BRL→USDT, prêmio real) + Gas + Spread off-ramp (USDT→USD, 0,3%)  
+**Exemplo cross-border R$ 50k:** USDC ≈ R$ 300 (0,6%) vs. Wire ≈ R$ 3.128 (6,3%, spread FX 2,5% + IOF 3,5% + tarifa) → **~90% economia, defensável**  
+**Por que não "99,99%":** o modelo antigo tratava stablecoin como só gas (custo fictício) e comparava PIX (doméstico) com Wire (cross-border) — apples-to-oranges. Corrigido no ADR-0008.
 
 ### 2️⃣ Compliance Filter  
 **Pergunta:** É legal fazer isso?  
@@ -42,8 +44,8 @@ Hoje: sem ferramentas. Tomorrow: **StableTreasury**.
 **Slide 1:** Tesouraria precisa otimizar alocação de caixa  
 **Slide 2:** Solução: VaR/ES quantitativo sobre histórico real  
 **Slide 3:** Validação: SVB-2023 spike aparece no gráfico  
-**Slide 4:** Resultado: 99,99% economia vs. Wire  
-**Slide 5:** Diferencial: Custo zero + regulatório embarcado
+**Slide 4:** Resultado: ~90% economia real vs. Wire (all-in, conversão contada) — a arbitragem existe porque stablecoin dribla o IOF de eFX  
+**Slide 5:** Diferencial: a arbitragem tem **prazo de validade regulatório** (BCB 561, out/2026) — o projeto mede a janela e o risco de depeg dela
 
 ---
 
