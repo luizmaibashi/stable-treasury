@@ -61,6 +61,13 @@ def classificar_risco_e_teto(es: float) -> tuple[str, float]:
     return FAIXAS_RISCO[-1][0], FAIXAS_RISCO[-1][2]
 
 
+def tamanho_cauda(n_amostras: int, confianca: float = 0.97) -> int:
+    # nº de observações na cauda que formam o ES. Exposto pra transparência de robustez:
+    # janela curta + confiança alta => cauda rasa (ex: 90 dias @ 97% => 3 amostras),
+    # ES ruidoso e sensível a outlier (achado F4 da auditoria 2026-07-14).
+    return max(1, round((1 - confianca) * n_amostras))
+
+
 def var_es_historico(retornos: np.ndarray, confianca: float = 0.99) -> tuple[float, float]:
     if len(retornos) == 0:
         # falha alta e clara: retornar (0.0, 0.0) mentiria "risco zero" quando
@@ -72,7 +79,7 @@ def var_es_historico(retornos: np.ndarray, confianca: float = 0.99) -> tuple[flo
     # round() em vez de int() puro: (1-0.9)*10 dá 0.999...998 em ponto flutuante,
     # int() trunca pra 0 e perde 1 caso da cauda inteiro. max(1, ...) garante
     # que sempre existe pelo menos 1 caso na cauda quando confianca < 1.
-    tail_count = max(1, round((1 - confianca) * n))
+    tail_count = tamanho_cauda(n, confianca)
     var = float(perdas_ordenadas[tail_count - 1])
     es = float(perdas_ordenadas[:tail_count].mean())
     return var, es

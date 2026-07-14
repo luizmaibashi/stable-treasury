@@ -4,15 +4,21 @@ import numpy as np
 try:
     from src.depeg_risk import (
         var_es_historico, historico_preco_peg, historico_pontos_peg,
-        desvio_peg, classificar_risco_e_teto, avaliar_risco_atual,
+        desvio_peg, classificar_risco_e_teto, avaliar_risco_atual, tamanho_cauda,
     )
 except ImportError:
     import sys
     sys.path.insert(0, ".")
     from src.depeg_risk import (
         var_es_historico, historico_preco_peg, historico_pontos_peg,
-        desvio_peg, classificar_risco_e_teto, avaliar_risco_atual,
+        desvio_peg, classificar_risco_e_teto, avaliar_risco_atual, tamanho_cauda,
     )
+
+
+def test_tamanho_cauda_expoe_robustez_rasa():
+    # 90 dias @ 97% => cauda de 3 amostras (F4); nunca menos que 1
+    assert tamanho_cauda(90, 0.97) == 3
+    assert tamanho_cauda(10, 0.999) == 1  # piso de 1 mesmo com confiança altíssima
 
 
 def test_var_es_captura_cauda_que_var_sozinho_perde():
