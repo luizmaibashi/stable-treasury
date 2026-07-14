@@ -7,10 +7,13 @@ except ImportError:
     from src.comparador import comparar_custos, gerar_faturas_sinteticas
 
 
+# --- estrutura básica (caso_uso cross_border é o default) ---
+
 def test_comparador_retorna_dataframe():
-    df = comparar_custos(50000, "remessa_internacional_terceiros")
+    df = comparar_custos(50000, caso_uso="cross_border")
     assert isinstance(df, pl.DataFrame)
-    assert len(df) == 6
+    # cross_border: Wire + USDT(erc20/poly) + USDC(erc20/poly) = 5 trilhos
+    assert len(df) == 5
 
 
 def test_comparador_tem_colunas_esperadas():
@@ -34,32 +37,65 @@ def test_wire_tem_spread_e_iof_positivos():
     assert wire["tarifa_brl"][0] > 0
 
 
-def test_pix_custo_zero():
-    df = comparar_custos(50000)
+# --- F2: segmentação por caso de uso ---
+
+def test_cross_border_nao_inclui_pix():
+    # PIX é doméstico BRL — não disputa pagamento cross-border (F2)
+    df = comparar_custos(50000, caso_uso="cross_border")
+    assert "PIX" not in df["trilho"].to_list()
+    assert "Wire (SWIFT)" in df["trilho"].to_list()
+
+
+def test_domestico_so_tem_pix():
+    df = comparar_custos(50000, caso_uso="domestico")
+    trilhos = df["trilho"].to_list()
+    assert trilhos == ["PIX"]
+
+
+def test_domestico_pix_custo_zero():
+    df = comparar_custos(50000, caso_uso="domestico")
     pix = df.filter(pl.col("trilho") == "PIX")
     assert pix["custo_total_brl"][0] == 0.0
 
 
-def test_iof_zero_para_stablecoin():
-    df = comparar_custos(50000, "stablecoin")
-    wire = df.filter(pl.col("trilho") == "Wire (SWIFT)")
-    assert wire["iof_brl"][0] == 0.0
+# --- F1: custo do trilho stablecoin inclui spread de conversão ---
 
+def test_stablecoin_tem_spread_de_conversao_positivo():
+    # antes do F1 o custo era só gas (spread_brl == 0). Agora on/off-ramp entra.
+    df = comparar_custos(50000, caso_uso="cross_border")
+    stables = df.filter(pl.col("moeda").str.contains("USD") & (pl.col("trilho") != "Wire (SWIFT)"))
+    assert len(stables) == 4
+    for s in stables["spread_brl"].to_list():
+        assert s > 0  # off-ramp fixo (0,3%) garante spread > 0 mesmo se prêmio on-ramp = 0
+
+
+def test_stablecoin_custo_total_inclui_spread_mais_gas():
+    df = comparar_custos(50000, caso_uso="cross_border")
+    usdt = df.filter(pl.col("trilho") == "USDT (Polygon)")
+    linha = usdt.row(0, named=True)
+    esperado = linha["spread_brl"] + linha["tarifa_brl"] + linha["iof_brl"] + linha["gas_brl"]
+    assert abs(linha["custo_total_brl"] - esperado) < 0.01
+
+
+# --- F7: religação do filtro legal BCB 561 (eFX remove stablecoin) ---
+
+def test_efx_remove_stablecoin_da_comparacao():
+    df = comparar_custos(50000, caso_uso="cross_border", eletronico_cambio=True)
+    trilhos = df["trilho"].to_list()
+    assert "Wire (SWIFT)" in trilhos
+    assert not any("USDT" in t or "USDC" in t for t in trilhos)
+
+
+# --- IOF ---
 
 def test_iof_35_para_remessa():
     df = comparar_custos(100000, "remessa_internacional_terceiros")
     wire = df.filter(pl.col("trilho") == "Wire (SWIFT)")
-    iof_esperado = (100000 / 5.0) * 0.035 * 5.0
+    iof_esperado = (100000 / 5.7) * 0.035 * 5.7
     assert abs(wire["iof_brl"][0] - iof_esperado) < 1.0
 
 
-def test_gas_fee_variacao_por_rede():
-    df = comparar_custos(50000)
-    erc20 = df.filter(pl.col("moeda") == "USDT → BRL")
-    poly = df.filter(pl.col("moeda") == "USDT → BRL")
-    assert erc20["gas_brl"][0] >= 0
-    assert poly["gas_brl"][0] >= 0
-
+# --- perfis sintéticos (rodam em cross_border, onde a escolha importa) ---
 
 def test_faturas_sinteticas_4_perfis():
     df = gerar_faturas_sinteticas()
@@ -67,6 +103,7 @@ def test_faturas_sinteticas_4_perfis():
     assert "perfil" in df.columns
 
 
-def test_melhor_trilho_nao_vazio():
+def test_faturas_sinteticas_melhor_nao_e_sempre_pix():
+    # o bug F2 fazia PIX vencer sempre; em cross_border PIX nem entra
     df = gerar_faturas_sinteticas()
-    assert all(df["melhor_trilho"].to_list())
+    assert "PIX" not in df["melhor_trilho"].to_list()
