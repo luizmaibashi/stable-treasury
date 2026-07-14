@@ -1,8 +1,15 @@
 # ADR-0007: Terceiro Pilar (Opportunity Cost/Yield) + Heurística de Slippage por Volume
 
 **Data**: 2026-07-14
-**Status**: Accepted
+**Status**: **Partially Superseded** por [ADR-0010](0010-custo-de-carrego-da-reserva.md)
 **Contexto**: Revisão externa (artigo sobre Cash Management/Hedging/Capital Markets, aplicado via análise LLM) comparando StableTreasury aos 3 pilares clássicos de tesouraria corporativa
+
+> ⚠️ **Nota de supersessão (2026-07-14):** o **ponto B** deste ADR (yield/opportunity cost sobre a
+> alocação em *stablecoin*) teve sua premissa invalidada pelo ADR-0009 — stablecoin deixou de ser
+> "reserva parada" e virou capital de giro em trânsito, onde yield é irrelevante. O 3º pilar foi
+> reenquadrado no **ADR-0010** como *custo de carrego da reserva de cash* (BRL vs CDI, USD vs T-bill).
+> O **ponto C** (slippage por volume) permanece válido e é implementado pelo ADR-0010.
+> O **ponto A** (hedge real) segue rejeitado, como decidido aqui.
 
 ---
 

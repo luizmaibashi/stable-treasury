@@ -16,6 +16,24 @@ GAS_UNITS_POLYGON = 65000  # mesmo contrato USDT, gas similar ao mainnet
 SPREAD_OFFRAMP_PERCENT = 0.3  # venda stablecoin→USD em mercado profundo (constante conservadora)
 SPREAD_ONRAMP_FALLBACK_PERCENT = {"usdt": 0.5, "usdc": 0.3}  # usado só se o preço ao vivo falhar
 
+# Slippage por volume (ADR-0007 ponto C / ADR-0010): converter volume grande move o mercado.
+# ⚠️ APROXIMAÇÃO DOCUMENTADA — acréscimo por faixa, NÃO modelo de order book real (débito #11).
+# Faixas: (limite superior em BRL, acréscimo em % sobre o valor convertido)
+FAIXAS_SLIPPAGE = [
+    (100_000, 0.0),
+    (1_000_000, 0.1),
+    (10_000_000, 0.25),
+    (float("inf"), 0.5),
+]
+
+
+def slippage_por_volume(valor_brl: float) -> float:
+    # retorna o acréscimo de slippage como fração (ex: 0,0025 = 0,25%)
+    for limite, pct in FAIXAS_SLIPPAGE:
+        if valor_brl < limite:
+            return pct / 100
+    return FAIXAS_SLIPPAGE[-1][1] / 100
+
 # Trilhos elegíveis por caso de uso (F2, ADR-0008): PIX é doméstico e não disputa
 # pagamento cross-border; Wire/USDT/USDC convertem BRL↔USD e não fazem sentido doméstico.
 _TRILHOS_DOMESTICO = ("PIX",)
@@ -110,7 +128,8 @@ def _calcular_stablecoin(
     gas_usd: float, ptax: float,
 ) -> dict:
     # custo real do trilho stablecoin (ADR-0008, F1): conversão de entrada + gas + saída.
-    spread_onramp = valor_brl * premio_onramp_frac
+    # O on-ramp soma o prêmio spot (dado real) + slippage por volume (ADR-0010, ponto C).
+    spread_onramp = valor_brl * (premio_onramp_frac + slippage_por_volume(valor_brl))
     spread_offramp = valor_brl * (SPREAD_OFFRAMP_PERCENT / 100)
     spread_conversao = spread_onramp + spread_offramp
     gas_brl = gas_usd * ptax
