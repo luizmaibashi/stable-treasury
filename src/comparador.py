@@ -2,7 +2,7 @@ import polars as pl
 from .iof_tabela import aliquota_iof
 from .coletor_precos import (
     preco_stablecoin, preco_eth, preco_matic, gas_fee_eth, gas_fee_polygon,
-    ptax_venda, PTAX_FALLBACK,
+    ptax_venda, PTAX_FALLBACK, order_book_usdt_brl,
 )
 from .compliance import filtrar_trilhos_permitidos
 
@@ -28,11 +28,41 @@ FAIXAS_SLIPPAGE = [
 
 
 def slippage_por_volume(valor_brl: float) -> float:
+    # FALLBACK heurístico (usado se o order book real não estiver disponível).
     # retorna o acréscimo de slippage como fração (ex: 0,0025 = 0,25%)
     for limite, pct in FAIXAS_SLIPPAGE:
         if valor_brl < limite:
             return pct / 100
     return FAIXAS_SLIPPAGE[-1][1] / 100
+
+
+def vwap_execucao(niveis: list[list[float]], valor_brl: float) -> float | None:
+    # preço médio de execução (VWAP) ao comprar `valor_brl` caminhando o order book
+    # nível a nível [[preco, qty], ...]. Retorna None se o book for raso demais pro volume.
+    # Isto é microestrutura de mercado real, não estimativa por faixa (ADR-0011).
+    gasto = 0.0
+    qty_total = 0.0
+    for preco, qty in niveis:
+        custo_nivel = preco * qty
+        if gasto + custo_nivel >= valor_brl:
+            falta = valor_brl - gasto
+            qty_total += falta / preco
+            return valor_brl / qty_total  # preço médio de execução
+        gasto += custo_nivel
+        qty_total += qty
+    return None  # profundidade insuficiente
+
+
+def slippage_execucao(valor_brl: float) -> float:
+    # slippage MEDIDO no order book real (Binance): (VWAP − mid) / mid. Cai pro fallback
+    # heurístico (slippage_por_volume) se a API falhar ou o book não cobrir o volume.
+    book = order_book_usdt_brl()
+    if book and book["asks"] and book["bids"]:
+        mid = (book["asks"][0][0] + book["bids"][0][0]) / 2
+        vwap = vwap_execucao(book["asks"], valor_brl)
+        if vwap is not None and mid > 0:
+            return max(0.0, (vwap - mid) / mid)
+    return slippage_por_volume(valor_brl)  # fallback documentado
 
 # Trilhos elegíveis por caso de uso (F2, ADR-0008): PIX é doméstico e não disputa
 # pagamento cross-border; Wire/USDT/USDC convertem BRL↔USD e não fazem sentido doméstico.
@@ -128,8 +158,8 @@ def _calcular_stablecoin(
     gas_usd: float, ptax: float,
 ) -> dict:
     # custo real do trilho stablecoin (ADR-0008, F1): conversão de entrada + gas + saída.
-    # O on-ramp soma o prêmio spot (dado real) + slippage por volume (ADR-0010, ponto C).
-    spread_onramp = valor_brl * (premio_onramp_frac + slippage_por_volume(valor_brl))
+    # On-ramp = prêmio spot (dado real) + slippage MEDIDO no order book (ADR-0011, VWAP real).
+    spread_onramp = valor_brl * (premio_onramp_frac + slippage_execucao(valor_brl))
     spread_offramp = valor_brl * (SPREAD_OFFRAMP_PERCENT / 100)
     spread_conversao = spread_onramp + spread_offramp
     gas_brl = gas_usd * ptax

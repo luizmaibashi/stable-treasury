@@ -13,7 +13,7 @@
 - `src/iof_tabela.py` — Tabela de alíquotas IOF vigentes
 - `src/coletor_precos.py` — Coleta de preços on-chain (CoinGecko, Etherscan)
 - `src/depeg_risk.py` — Depeg Risk Engine: VaR/ES sobre histórico de peg (DefiLlama), faixas de risco
-- `src/perfil_referencia.py` — perfil de tesouraria do demo, âncora de escala em dado real (Nubank FY2025) vs. premissa ilustrativa (ADR-0009)
+- `src/perfil_referencia.py` — perfil de tesouraria do demo, âncora de escala em dado real (Azul S.A. FY2024, passivo em USD) vs. premissa ilustrativa (ADR-0009/0011)
 - `src/custo_carrego.py` — 3º pilar (Capital Markets & Funding): custo de oportunidade da reserva de cash (BRL vs CDI, USD vs T-bill) — ADR-0010
 - `src/db.py` — Schema SQLAlchemy (fonte única): tabelas `peg_prices` e `risk_snapshots`
 - `src/repositorio.py` — Camada de persistência agnóstica de dialeto (SQLite/Postgres)
@@ -101,8 +101,8 @@
 4. BCB 561 implementada como regra determinística (sem interpretação jurídica)
 5. ~~Liquidity Optimizer usa heurística fixa (50/30/20) sem base quantitativa~~ **RESOLVIDO** — `src/depeg_risk.py` calcula VaR/ES sobre histórico real (DefiLlama) e classifica risco em faixas calibradas com eventos reais (USDC-SVB, UST); teto de alocação em `src/otimizador.py` deriva desse cálculo, não mais fixo. Ver ADR-0003.
 6. ~~Projeto é 100% stateless (sem histórico persistido)~~ **RESOLVIDO** — persistência via SQLAlchemy + Postgres em Docker (ADR-0005); histórico 2022→hoje ingerido, série de risco (backtest) persistida.
-7. Depeg Risk Engine mede risco só sobre USDC (`usd-coin`) e aplica o teto ao total em stablecoin; USDT tem perfil de reserva/attestation distinto. Ideal: teto ponderado pela composição real da carteira (USDT vs USDC). Simplificação consciente, documentada em `app.py`.
-8. VaR/ES usa granularidade diária (DefiLlama `period=1d`), que suaviza o mínimo intra-dia real (ex: USDC tocou 0,8767 hourly em mar/2023, mas a série diária registra ~0,96). O risco de cauda real é subestimado — mitigável usando `period=1h` em janelas de stress.
+7. ~~Depeg Risk Engine mede risco só sobre USDC e aplica o teto ao total em stablecoin~~ **RESOLVIDO** (ADR-0011 #4) — `avaliar_risco_carteira` mede sobre a carteira real (USDC+USDT ponderados via `desvio_carteira`); a correlação emerge do dado (inner join por timestamp). Composição configurável no dashboard.
+8. ~~VaR/ES usa granularidade diária, que suaviza o mínimo intra-dia real~~ **RESOLVIDO** (ADR-0011 #2) — risco atual usa série horária (`period=1h`, ~2160 pts em 90d, cauda de ~65 e captura o mínimo real 0,8767 de mar/2023). Backtest histórico segue diário (trend de anos).
 9. `var_es_historico` aceita `confianca` fora de [0,1] (ex: 1.5, -0.1) silenciosamente, sem validar — clampa pro mesmo resultado do limite válido. Baixo risco (função interna, nunca exposta a input de usuário), mas sem guarda explícita. Achado no PAVC audit 2026-07-05.
 10. `_utc_naive`/`_com_utc` (`src/repositorio.py`) assumem implicitamente que `datetime` sem timezone já está em UTC, sem validar. Se código futuro passar naive em horário local, persiste silenciosamente errado. Achado no PAVC audit 2026-07-05.
 11. Heurística de slippage por volume (`comparador.py`, ADR-0007) é aproximação documentada — não modela order book/liquidez real, aplica acréscimo estimado por faixa de valor, mesmo padrão do débito #1 (spread bancário estimado). Não usar como cotação precisa.
@@ -111,7 +111,7 @@
 14. Off-ramp stablecoin (0,3%, `comparador.py`) é constante conservadora estimada, não medida (ADR-0008). Mesmo status do débito #1.
 15. `DIAS_SETTLEMENT` (5) e `CAP_POLITICA_STABLECOIN` (5%) em `otimizador.py` são premissas de política, não medidas (ADR-0009). Configuráveis, documentadas.
 16. ES de robustez rasa: janela 90d @ 97% = cauda de 3 amostras (`tamanho_cauda`), estimador sensível a outlier. Exposto na UI como disclaimer (F4); combina com débito #8.
-17. Perfil de referência (`perfil_referencia.py`) mistura dado real de escala (Nubank FY2025, com fonte) e premissa de fluxo cross-border (ilustrativa). Cada campo rotulado; Nubank é banco, usado só como âncora de ordem de grandeza (ADR-0009).
+17. Perfil de referência (`perfil_referencia.py`) mistura dado real de escala (Azul S.A. FY2024, 20-F, com fonte) e premissa de fluxo cross-border (ilustrativa). Cada campo rotulado. Âncora trocada de Nubank (banco) para Azul (aérea com passivo em USD — caso clássico de tesouraria cambial), ADR-0011 #5.
 18. `yield_atual` do caixa (default 0%, `custo_carrego.py`) assume conta não remunerada — premissa; tesourarias grandes já remuneram parte do caixa. Input configurável no dashboard (ADR-0010).
 19. Custo de **float do trilho** (capital preso durante os dias de settlement, rendendo 0%) não é modelado — é pequeno e tende a se cancelar entre trilhos (Wire também é T+2/T+5). Decisão consciente do ADR-0010.
 20. Slippage por volume (`FAIXAS_SLIPPAGE`, `comparador.py`) é acréscimo por faixa, **não** modelo de order book real (ADR-0010, ponto C do 0007). Herda o status do débito #11.

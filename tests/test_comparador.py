@@ -1,10 +1,44 @@
 import polars as pl
 try:
-    from src.comparador import comparar_custos, gerar_faturas_sinteticas, slippage_por_volume
+    from src.comparador import (
+        comparar_custos, gerar_faturas_sinteticas, slippage_por_volume,
+        vwap_execucao,
+    )
 except ImportError:
     import sys
     sys.path.insert(0, ".")
-    from src.comparador import comparar_custos, gerar_faturas_sinteticas, slippage_por_volume
+    from src.comparador import (
+        comparar_custos, gerar_faturas_sinteticas, slippage_por_volume,
+        vwap_execucao,
+    )
+
+
+# --- #3 (ADR-0011): VWAP no order book real, matemática pura ---
+
+def test_vwap_um_nivel_suficiente():
+    # book: 10.000 USDT a 5,00. Comprar R$ 25.000 = 5.000 USDT, tudo no 1º nível -> VWAP 5,00
+    asks = [[5.00, 10_000.0]]
+    assert vwap_execucao(asks, 25_000) == 5.00
+
+
+def test_vwap_atravessa_niveis_encarece():
+    # 1.000 USDT a 5,00 (=R$5k) esgota; resto vem a 5,10. VWAP fica entre 5,00 e 5,10
+    asks = [[5.00, 1_000.0], [5.10, 10_000.0]]
+    vwap = vwap_execucao(asks, 20_000)
+    assert 5.00 < vwap < 5.10
+
+
+def test_vwap_book_raso_retorna_none():
+    # book só tem R$5k de profundidade, mas pedimos R$50k -> None (dispara fallback)
+    asks = [[5.00, 1_000.0]]
+    assert vwap_execucao(asks, 50_000) is None
+
+
+def test_slippage_execucao_cai_no_fallback_sem_book(monkeypatch):
+    # se o order book vier vazio, usa a heurística por faixa (fallback documentado)
+    import src.comparador as cmp
+    monkeypatch.setattr(cmp, "order_book_usdt_brl", lambda *a, **k: None)
+    assert cmp.slippage_execucao(5_000_000) == slippage_por_volume(5_000_000)
 
 
 # --- ponto C (ADR-0010): slippage por volume, aproximação documentada ---
