@@ -1,7 +1,17 @@
+import os
+
 import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Em produção (Streamlit Cloud) a DATABASE_URL vem dos secrets. Espelhamos pro os.environ
+# para o db.py — que lê via os.environ — funcionar sem nenhuma mudança de código (ADR-0006).
+try:
+    if not os.environ.get("DATABASE_URL") and "DATABASE_URL" in st.secrets:
+        os.environ["DATABASE_URL"] = st.secrets["DATABASE_URL"]
+except Exception:
+    pass  # sem secrets.toml local (dev) — usa o Postgres do docker-compose
 
 from src.comparador import comparar_custos, gerar_faturas_sinteticas
 from src.compliance import validar_transacao
