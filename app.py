@@ -8,7 +8,7 @@ from src.compliance import validar_transacao
 from src.otimizador import otimizar_alocacao
 from src.custo_carrego import custo_oportunidade_reserva
 from src.coletor_precos import preco_stablecoin, ptax_venda
-from src.depeg_risk import avaliar_risco_atual
+from src.depeg_risk import avaliar_risco_carteira
 from src.db import get_engine
 from src.repositorio import ler_serie_risco
 
@@ -190,13 +190,19 @@ with tab_liquidity:
             "Rendimento atual do caixa (% a.a.)", min_value=0.0, max_value=30.0, value=0.0, step=0.5,
             help="Quanto sua reserva já rende hoje. 0% = conta não remunerada. Usado pra calcular o custo de carrego vs. CDI/T-bill (ADR-0010).",
         )
+        pct_usdc = st.slider(
+            "Composição stablecoin: % USDC (resto USDT)", min_value=0, max_value=100, value=50, step=5,
+            help="O risco de depeg é medido sobre a CARTEIRA real (USDC+USDT ponderados), não só sobre USDC. A correlação entre os dois emerge do dado (ADR-0011, débito #7).",
+        ) / 100
 
     if st.button("Otimizar alocação", type="primary"):
-        with st.spinner("Avaliando risco de depeg (VaR/ES sobre histórico real USDC)..."):
-            # SIMPLIFICAÇÃO: risco medido só sobre USDC e aplicado ao total em stablecoin.
-            # USDT tem perfil de risco distinto (reserva/attestation diferente) — débito
-            # técnico documentado no AGENTS.md; ideal seria risco ponderado por composição.
-            faixa_risco, teto_risco, es_atual = avaliar_risco_atual("usd-coin", dias=90)
+        with st.spinner("Avaliando risco de depeg da carteira (VaR/ES horário sobre USDC+USDT)..."):
+            # risco medido sobre a CARTEIRA real (USDC+USDT ponderados), série horária —
+            # correlação emerge do dado (ADR-0011, corrige débito #7). avaliar_risco_atual
+            # (só USDC) segue disponível como fallback conceitual.
+            faixa_risco, teto_risco, es_atual = avaliar_risco_carteira(
+                {"usd-coin": pct_usdc, "tether": 1 - pct_usdc}, dias=90
+            )
 
         resultado = otimizar_alocacao(
             saldo_brl=saldo_brl,
@@ -221,7 +227,8 @@ with tab_liquidity:
         st.caption(
             "Reserva de emergência em **cash** (BRL) — stablecoin NÃO é caixa equivalente "
             "(US GAAP/IFRS, ASU 2023-08) e entra só como capital de giro no trilho, com teto de "
-            "política (5%), teto de depeg e haircut pelo ES (ADR-0009). Âncora de escala: Nubank FY2025."
+            "política (5%), teto de depeg e haircut pelo ES (ADR-0009). Âncora de escala: "
+            "Azul S.A. FY2024 (aérea com passivo em USD — caso clássico de tesouraria cambial)."
         )
 
         # --- 3º pilar: custo de carrego da reserva (ADR-0010) ---

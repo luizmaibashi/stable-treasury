@@ -5,6 +5,7 @@ try:
     from src.depeg_risk import (
         var_es_historico, historico_preco_peg, historico_pontos_peg,
         desvio_peg, classificar_risco_e_teto, avaliar_risco_atual, tamanho_cauda,
+        desvio_carteira,
     )
 except ImportError:
     import sys
@@ -12,7 +13,38 @@ except ImportError:
     from src.depeg_risk import (
         var_es_historico, historico_preco_peg, historico_pontos_peg,
         desvio_peg, classificar_risco_e_teto, avaliar_risco_atual, tamanho_cauda,
+        desvio_carteira,
     )
+from datetime import datetime as _dt
+
+
+def _serie(precos):
+    # helper: vira [(ts, price)] com timestamps sequenciais alinháveis
+    return [(_dt(2026, 1, 1, h), p) for h, p in enumerate(precos)]
+
+
+def test_desvio_carteira_pondera_e_alinha():
+    # USDC 50% + USDT 50%; em t2 USDC=0,90 (desvio -0,10), USDT=1,00 -> carteira -0,05
+    usdc = _serie([1.00, 1.00, 0.90])
+    usdt = _serie([1.00, 1.00, 1.00])
+    d = desvio_carteira({"usd-coin": usdc, "tether": usdt}, {"usd-coin": 0.5, "tether": 0.5})
+    assert abs(d[-1] - (-0.05)) < 1e-9
+
+
+def test_carteira_amortece_choques_nao_correlacionados():
+    # USDC despenca em t1, USDT em t2 (choques em momentos diferentes). A carteira 50/50
+    # corta cada choque pela metade -> ES da carteira < ES do ativo isolado (diversificação
+    # emerge do dado, ADR-0011).
+    usdc = _serie([1.00, 0.80, 1.00, 1.00])   # choque -0,20 em t1
+    usdt = _serie([1.00, 1.00, 0.80, 1.00])   # choque -0,20 em t2
+    d_carteira = desvio_carteira({"usd-coin": usdc, "tether": usdt}, {"usd-coin": 0.5, "tether": 0.5})
+    _, es_carteira = var_es_historico(d_carteira, confianca=0.75)
+    _, es_isolado = var_es_historico(desvio_peg([1.00, 0.80, 1.00, 1.00]), confianca=0.75)
+    assert es_carteira < es_isolado
+
+
+def test_desvio_carteira_pesos_zero_vazio():
+    assert len(desvio_carteira({"usd-coin": _serie([1.0])}, {"usd-coin": 0.0})) == 0
 
 
 def test_tamanho_cauda_expoe_robustez_rasa():

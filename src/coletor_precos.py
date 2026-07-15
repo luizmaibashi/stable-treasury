@@ -11,6 +11,8 @@ COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price"
 ETHERSCAN_URL = "https://api.etherscan.io/api"
 POLYGONSCAN_URL = "https://api.polygonscan.com/api"
 BCB_SGS_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.10813/dados"
+# Order book USDT/BRL (Binance, público, sem key) — microestrutura pro slippage real (ADR-0011)
+BINANCE_DEPTH_URL = "https://api.binance.com/api/v3/depth"
 # CDI anualizado (série 4389) — referência de cash-equivalent em BRL (ADR-0010)
 BCB_CDI_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/1"
 # T-bill (US Treasury, avg interest rate) — referência de cash-equivalent em USD (ADR-0010)
@@ -124,6 +126,24 @@ def preco_matic() -> float | None:
         return data.get("matic-network", {}).get("usd")
     except Exception as e:
         logger.warning(f"Falha ao consultar MATIC via CoinGecko: {e}")
+        return None
+
+
+def order_book_usdt_brl(limit: int = 100) -> dict | None:
+    # order book real de USDT/BRL (Binance). Retorna {'bids': [[preco, qty], ...],
+    # 'asks': [...]} com floats, ou None se a API falhar. Base do slippage medido (ADR-0011).
+    try:
+        resp = requests.get(
+            BINANCE_DEPTH_URL, params={"symbol": "USDTBRL", "limit": limit}, timeout=10
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return {
+            "bids": [[float(p), float(q)] for p, q in data["bids"]],
+            "asks": [[float(p), float(q)] for p, q in data["asks"]],
+        }
+    except Exception as e:
+        logger.warning(f"Falha ao consultar order book USDT/BRL via Binance: {e}")
         return None
 
 

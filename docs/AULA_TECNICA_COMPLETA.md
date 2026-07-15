@@ -1,7 +1,8 @@
 # StableTreasury — Aula Técnica Completa (ponta a ponta)
 
 > **Objetivo deste documento**: entender o sistema a fundo — a matemática, a engenharia e **por que cada decisão foi tomada** (incluindo as que foram rejeitadas e as que morreram no caminho).
-> **Data**: 2026-07-14 · **Estado**: 62 testes passando · ADRs 0001–0010
+> **Data**: 2026-07-14 · **Estado**: 73 testes passando · ADRs 0001–0011
+> **Nota**: as seções 3–6 descrevem o modelo; os refinamentos de rigor (IOF, granularidade horária, order book real, ES de carteira, âncora Azul) estão consolidados na **seção 11** e no ADR-0011.
 > **Como ler**: as seções 1–3 são o sistema. A seção 4 é a trilha de decisões. A 5 é a auditoria (onde o projeto estava errado). A 6 é a parte de finanças corporativas — a mais importante para defender o projeto.
 
 ---
@@ -491,9 +492,33 @@ Perfil de referência calibrado em **Nu Holdings (Nubank), Form 20-F FY2025** (S
 
 ## 10. Referências
 
-- ADRs: `docs/adr/0001..0010`
+- ADRs: `docs/adr/0001..0011`
 - Auditoria: `docs/audit/2026-07-14_auditoria_tecnica_negocio_matematica.md`
 - Linguagem Ubíqua + débitos: `AGENTS.md`
-- Nu Holdings 20-F FY2025: https://www.sec.gov/Archives/edgar/data/1691493/000129281426002166/nuform20f_2025.htm
+- Azul S.A. 20-F FY2024: https://www.sec.gov/Archives/edgar/data/1432364/000162828025020401/azul-20241231.htm
 - FASB ASU 2023-08 (cripto a valor justo, fora de caixa & equivalentes)
 - Basel III / FRTB — Expected Shortfall 97,5% como métrica regulatória
+
+---
+
+## 11. Refinamentos de rigor pós-aula (ADR-0011)
+
+Cinco premissas viraram medições (ou dado mais fino) depois da revisão crítica da própria aula. **Onde havia dado de mercado gratuito, a premissa foi substituída por medição.**
+
+### 11.1 IOF condicional ao tipo de operação (corrige viés da manchete)
+O demo defaultava para `remessa_terceiros` (3,5%) — o caso que **mais infla** a economia do stablecoin. Mas **importação de bens é ISENTA de IOF** (Decreto 6.306, Art. 15-B §1º). Adicionados `importacao_bens` (0%) e `importacao_servicos` (0,38%). A narrativa fica mais honesta e mais forte: **a arbitragem do stablecoin é máxima onde o IOF é alto (serviços, 3,5%) e quase nula onde já é isento (importação de bens).**
+
+### 11.2 Granularidade horária (conserta F4 + débito #8 juntos)
+Risco **atual** passou de diário (`period=1d`) para **horário** (`period=1h`), paginado em janelas de 500 pontos. 90 dias = **~2160 pontos → cauda de ~65** (vs. 3) e captura o **mínimo real 0,8767** de mar/2023 (o diário suavizava para ~0,96). Funciona limpo porque a métrica é **desvio de peg (nível)**, não retorno — sem reescala de horizonte. Backtest histórico segue diário (trend de anos).
+
+### 11.3 Order book real → slippage vira microestrutura (não faixa)
+`slippage_execucao` caminha o **order book real da Binance** (USDT/BRL, gratuito) e calcula o **VWAP de execução**: `slippage = (VWAP − mid)/mid`. Medição de profundidade de mercado real. Fallback para a heurística por faixa se o book estiver raso/indisponível. Resultado real: slippage de 5M ≈ 0,035% (o book é profundo) — muito menor que a faixa antiga estimava.
+
+### 11.4 ES ponderado por carteira (corrige débito #7, com correlação)
+Antes: risco só sobre USDC, aplicado ao total. Agora: `desvio_carteira` constrói a **série de desvio ponderada** (USDC+USDT alinhados por timestamp) e o ES é calculado sobre ela. **A correlação/diversificação emerge do dado** — não é média de ES individuais (que ignoraria correlação). Composição configurável no dashboard.
+
+### 11.5 Âncora trocada: Nubank → Azul
+Nubank é **banco** (balanço de depósitos), âncora fraca. Trocado por **Azul S.A. (aérea, 20-F FY2024)**: passivo pesado em **USD** (leasing, combustível, manutenção) contra receita em BRL — o caso de **livro-texto de tesouraria cambial**. A reestruturação de dívida da Azul (jan/2025) **reforça** o ponto: gestão de exposição em USD é existencial. Resultado com o perfil: BRL 53% / **USD 43% (hedge natural)** / stablecoin 3,7% — corporativamente coerente.
+
+### 11.6 O que continua premissa (e por quê) — honestidade
+`CAP_POLITICA_STABLECOIN` (5%) **não virou medição**, e não deveria: é decisão **normativa de board** (apetite a risco), não quantidade de mercado. Não existe fórmula que descubra quanto uma empresa *deve* permitir de ativo digital. Fingir medição aqui seria o "número mágico" que o ADR-0003 combateu. Ancorada em survey de política (AFP), configurável.

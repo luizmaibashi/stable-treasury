@@ -121,6 +121,40 @@ def var_es_historico(retornos: np.ndarray, confianca: float = 0.99) -> tuple[flo
     return var, es
 
 
+def desvio_carteira(series_por_id: dict[str, list], pesos: dict[str, float]) -> np.ndarray:
+    # desvio de peg PONDERADO da carteira (ADR-0011, corrige débito #7). Alinha as séries
+    # por timestamp comum (inner join) e soma os desvios ponderados pelos pesos normalizados.
+    # A correlação entre USDT e USDC EMERGE do dado — não é imposta por fórmula. Medir o risco
+    # sobre a carteira real é mais correto que medir só sobre USDC e aplicar ao total.
+    total = sum(pesos.values())
+    if total <= 0:
+        return np.array([])
+    w = {i: pesos[i] / total for i in pesos}
+    mapas = {i: dict(s) for i, s in series_por_id.items() if i in pesos}
+    if not mapas:
+        return np.array([])
+    ts_comuns = set.intersection(*[set(m.keys()) for m in mapas.values()])
+    desvios = [
+        sum(w[i] * (mapas[i][ts] - 1.0) for i in mapas)
+        for ts in sorted(ts_comuns)
+    ]
+    return np.array(desvios)
+
+
+def avaliar_risco_carteira(
+    pesos: dict[str, float], dias: int = 90, confianca: float = 0.97
+) -> tuple[str, float, float]:
+    # risco de depeg da CARTEIRA real (ex: {"usd-coin": 0.6, "tether": 0.4}), série horária.
+    # Substitui "medir só USDC e aplicar ao total" pela medição ponderada (débito #7, ADR-0011).
+    series = {i: historico_pontos_peg_horario(i, dias=dias) for i in pesos}
+    desvios = desvio_carteira(series, pesos)
+    if len(desvios) < 2:
+        return "medio", 0.30, 0.0  # dado insuficiente → fallback conservador
+    _, es = var_es_historico(desvios, confianca=confianca)
+    faixa, teto = classificar_risco_e_teto(es)
+    return faixa, teto, es
+
+
 def avaliar_risco_atual(
     coingecko_id: str, dias: int = 90, confianca: float = 0.97, granularidade: str = "1h"
 ) -> tuple[str, float, float]:
