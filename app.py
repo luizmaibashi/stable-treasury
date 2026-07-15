@@ -26,13 +26,15 @@ st.set_page_config(
 )
 
 st.title("🏦 StableTreasury")
-st.markdown("Motor de decisão para tesourarias — compara trilhos, valida compliance, otimiza liquidez.")
+st.markdown("Motor de decisão para tesourarias — mede risco de depeg (VaR/ES), otimiza liquidez, compara trilhos e valida compliance.")
 
-tab_rails, tab_compliance, tab_liquidity, tab_risco, tab_config = st.tabs([
+# Ordem de exibição alinhada à narrativa: o Depeg Risk Engine é o protagonista (lidera),
+# seguido pela alocação que consome o risco, depois custo de trilho e legalidade.
+tab_risco, tab_liquidity, tab_rails, tab_compliance, tab_config = st.tabs([
+    "📈 Risco de Depeg",
+    "💧 Liquidity Optimizer",
     "📊 Rail Comparator",
     "🔒 Compliance Filter",
-    "💧 Liquidity Optimizer",
-    "📈 Histórico de Risco",
     "⚙️ Config",
 ])
 
