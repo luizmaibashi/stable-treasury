@@ -11,6 +11,7 @@ from src.coletor_precos import preco_stablecoin, ptax_venda
 from src.depeg_risk import avaliar_risco_carteira
 from src.db import get_engine
 from src.repositorio import ler_serie_risco
+from src.ui import aplicar_estilo, hero, intro
 
 
 @st.cache_resource
@@ -25,8 +26,8 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("🏦 StableTreasury")
-st.markdown("Motor de decisão para tesourarias — mede risco de depeg (VaR/ES), otimiza liquidez, compara trilhos e valida compliance.")
+aplicar_estilo()
+hero()
 
 # Ordem de exibição alinhada à narrativa: o Depeg Risk Engine é o protagonista (lidera),
 # seguido pela alocação que consome o risco, depois custo de trilho e legalidade.
@@ -40,6 +41,14 @@ tab_risco, tab_liquidity, tab_rails, tab_compliance, tab_config = st.tabs([
 
 with tab_rails:
     st.header("Comparador de Trilhos")
+    intro(
+        "Qual via de pagamento custa menos para mandar dinheiro ao exterior?",
+        'Um "trilho" é o caminho que o dinheiro percorre: <span class="term">PIX</span> (só dentro do Brasil), '
+        '<span class="term">Wire</span> (transferência bancária internacional) ou <span class="term">USDT/USDC</span> '
+        '(dólares digitais). Cada um tem um custo total diferente: spread de câmbio, imposto (IOF), tarifas e taxa de rede.',
+        'a tabela ordena do <b>mais barato ao mais caro</b>. O trilho stablecoin costuma custar ~90% menos que o Wire — '
+        'mas isso muda conforme o <b>tipo de operação</b>: importar bens é isento de IOF, então a vantagem encolhe.',
+    )
 
     col1, col2 = st.columns([1, 2])
     with col1:
@@ -135,6 +144,15 @@ with tab_rails:
 
 with tab_compliance:
     st.header("Validador de Compliance BCB")
+    intro(
+        "Essa operação é permitida pela regulação brasileira?",
+        'O Banco Central tem regras sobre usar ativos digitais em câmbio. A mais importante: a '
+        '<span class="term">Resolução BCB 561</span> proíbe stablecoin como via de liquidação em câmbio '
+        'eletrônico a partir de <b>out/2026</b> — é o prazo de validade da economia. Outras regras exigem '
+        'KYC (identificação) e declaração de valores acima de R$ 500 mil.',
+        'preencha a operação e valide. <b>Vermelho</b> = bloqueada (ilegal); <b>amarelo</b> = permitida, '
+        'mas exige uma providência. Teste "Eletrônico Câmbio" + trilho USDT para ver a BCB 561 bloquear.',
+    )
 
     col_a, col_b = st.columns(2)
     with col_a:
@@ -174,6 +192,16 @@ with tab_compliance:
 
 with tab_liquidity:
     st.header("Otimizador de Liquidez")
+    intro(
+        "Como dividir o caixa da empresa entre real, dólar e dólar digital?",
+        'Uma tesouraria precisa de <b>reserva de emergência</b> (sempre em dinheiro de verdade — stablecoin '
+        'não conta como caixa pela regra contábil), pode manter <b>dólar</b> se tem contas em dólar (hedge '
+        'natural), e usa <b>stablecoin</b> só como dinheiro em trânsito para pagar lá fora — nunca como '
+        'investimento. O motor decide os percentuais respeitando essas regras e o risco de depeg.',
+        'a frase de <b>alocação</b> mostra a divisão final. Repare: mesmo com risco baixo, a stablecoin fica '
+        'em ~5% (limite de política, não de risco). E o <b>Custo de Oportunidade</b> mostra quanto a reserva '
+        'parada deixa de render — dinheiro na mesa que dá pra capturar sem risco.',
+    )
 
     col_l1, col_l2 = st.columns(2)
     with col_l1:
@@ -271,11 +299,15 @@ with tab_liquidity:
         )
 
 with tab_risco:
-    st.header("Histórico de Risco de Depeg (ES ao longo do tempo)")
-    st.markdown(
-        "Série reconstruída sobre preço histórico real (DefiLlama, desde 2022) e persistida no "
-        "banco. Cada ponto é o Expected Shortfall calculado sobre a janela de 90 dias terminada "
-        "naquela data — mostra o que o modelo **teria feito** em cada momento (ADR-0004)."
+    st.header("Risco de Depeg ao longo do tempo")
+    intro(
+        "Quão perto a stablecoin já chegou de quebrar — e quando?",
+        'O <b>Expected Shortfall (ES)</b> responde: "nos piores cenários, quanto a moeda perde da paridade?". '
+        'É a mesma métrica de risco que os bancos usam (padrão Basel). O gráfico reconstrói esse risco a cada '
+        'semana desde 2022, sobre o preço real da moeda.',
+        'procure o <b>pico em março de 2023</b>: é o colapso do banco SVB, onde o USDC despencou para US$ 0,88. '
+        'Ele aparece <b>sozinho</b> — ninguém programou essa data. O modelo descobre a crise porque o preço real '
+        'caiu. É a prova de que o motor funciona.',
     )
 
     ativo = st.selectbox("Stablecoin", options=["usd-coin", "tether"],
@@ -296,7 +328,8 @@ with tab_risco:
             "ES (97%)": [s["es"] for s in serie],
             "VaR (97%)": [s["var"] for s in serie],
         })
-        st.line_chart(df, x="data", y=["ES (97%)", "VaR (97%)"])
+        # ES em âmbar (a métrica de risco que manda), VaR em cinza — paleta do painel
+        st.line_chart(df, x="data", y=["ES (97%)", "VaR (97%)"], color=["#F2B03D", "#6B7A93"])
 
         pico = max(serie, key=lambda s: s["es"])
         c1, c2, c3 = st.columns(3)
