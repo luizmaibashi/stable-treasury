@@ -271,9 +271,33 @@ with tab_liquidity:
             "Azul S.A. FY2024 (aérea com passivo em USD — caso clássico de tesouraria cambial)."
         )
 
-        # --- 3º pilar: custo de carrego da reserva (ADR-0010) ---
+        # --- FLUXO: o dinheiro que o projeto de fato movimenta (giro no trilho) ---
+        # Distinto do ESTOQUE parado (reserva) abaixo. Não são a mesma fonte de valor:
+        # este dinheiro SAI da empresa de qualquer forma (paga fornecedor); o ganho aqui é
+        # custo de TRANSAÇÃO menor (Rail Comparator), não custo de OPORTUNIDADE de ficar parado.
+        giro_brl = resultado["alocacao_stablecoin_pct"] * resultado["saldo_total_equivalent_brl"]
         st.divider()
-        st.subheader("💸 Custo de Oportunidade da Reserva")
+        st.subheader("🔄 Capital em Giro no Trilho — o dinheiro do fluxo")
+        col_g1, col_g2 = st.columns(2)
+        col_g1.metric("Capital em trânsito (stablecoin)", f"R$ {giro_brl:,.0f}",
+                       help="Fração do caixa alocada ao giro cross-border (teto triplo: fluxo × política × risco).")
+        col_g2.metric("Valor de liquidez pós-haircut", f"R$ {resultado['valor_liquidez_stablecoin_brl']:,.0f}",
+                       help=f"Descontado pelo ES de depeg ({es_atual:.2%}).")
+        st.info(
+            f"Este dinheiro **precisa sair da empresa** para pagar fornecedor — não está parado. "
+            f"O ganho aqui não é 'render mais': é **pagar menos taxa pra mover** (spread + IOF + gas), "
+            f"medido na aba **Rail Comparator**. É fluxo, não estoque — soma-se ao custo de carrego "
+            f"abaixo, **não substitui** ele."
+        )
+
+        # --- 3º pilar: custo de carrego da reserva PARADA (ADR-0010) — estoque, não fluxo ---
+        st.divider()
+        st.subheader("💸 Custo de Oportunidade da Reserva — o dinheiro que fica parado")
+        st.caption(
+            "Diferente do capital em giro acima: isto é o **saldo que NÃO precisa se mover** "
+            "(reserva de emergência + excedente). Ele fica ocioso o ano inteiro — daí o custo "
+            "de oportunidade ser medido em taxa de referência (CDI/T-bill), não em spread de trilho."
+        )
         with st.spinner("Consultando CDI (BCB) e T-bill (US Treasury)..."):
             carrego = custo_oportunidade_reserva(
                 reserva_brl=resultado["brl_target"],
@@ -298,8 +322,10 @@ with tab_liquidity:
         st.caption(
             "Custo de carrego = valor parado × (taxa de referência − yield atual). "
             "CDI via BCB SGS 4389, T-bill via US Treasury (fiscaldata) — ambos ao vivo. "
-            "Este é o 3º pilar (Capital Markets & Funding): o capital dorme na reserva, "
-            "não no giro em stablecoin (ADR-0010, supersede o ADR-0007 §B)."
+            "Este é o 3º pilar (Capital Markets & Funding): o capital dorme na reserva "
+            "(estoque), não no giro em stablecoin (fluxo) — ADR-0010, supersede o ADR-0007 §B. "
+            "**Não é um trade-off** (escolher um ou outro): são duas fontes de valor "
+            "independentes e aditivas — capturáveis ao mesmo tempo, sem competir pelo mesmo real."
         )
 
         st.caption(
