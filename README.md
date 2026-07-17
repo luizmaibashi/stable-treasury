@@ -2,6 +2,8 @@
 
 **Motor de decisão de tesouraria cross-border: mede a arbitragem do trilho stablecoin, o risco de depeg de usá-la e o custo de não usar o caixa — com rigor de mesa, não de tutorial.**
 
+### 🔗 [Ver o dashboard ao vivo](https://stable-treasury-khrmolkmu738evtrxd9aqv.streamlit.app/)
+
 > Existe uma janela de arbitragem de **~90%** em pagamentos cross-border via stablecoin — e parte dela tem **data de expiração regulatória** (Resolução BCB 561, vigência 1º/out/2026, que proíbe stablecoin como liquidação em operações formais de **eFX**). Este projeto mede os três lados dessa decisão ao mesmo tempo: **quanto se economiza**, **quanto risco se corre**, e **quanto custa o caixa parado** — e o Compliance Filter já bloqueia corretamente a operação restrita, meses antes da regra valer.
 >
 > A 561 é escopada a eFX — a arbitragem **persiste** fora desse regime formal, e o Depeg Risk Engine (o motor central) não tem prazo de validade nenhum. Validação completa em [`docs/val-loop/bcb561-prazo/`](docs/val-loop/bcb561-prazo/).
