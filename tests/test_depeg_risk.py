@@ -138,9 +138,62 @@ def test_classificar_risco_medio_fronteira():
     assert teto == 0.30
 
 
+def test_es_horario_real_da_janela_svb_ainda_classifica_baixo_mas_com_margem_estreita():
+    # Achado #2 (auditoria 2026-07-30): ADR-0011 trocou o cálculo AO VIVO pra granularidade
+    # horária, mas nunca refez a calibração das FAIXAS_RISCO — que segue ancorada no ES
+    # DIÁRIO do SVB (1,76%, ~3,24pp de folga até o corte "baixo" de 5%). Medido com o
+    # motor real (dado ao vivo, DefiLlama 1h): ES(97%) horário do MESMO evento = ~4,18%.
+    # A classificação NÃO muda (continua "baixo") — mas a folga cai pra ~0,82pp, quase 4×
+    # mais estreita. Pin explícito: se a API mudar o dado histórico ou o corte precisar
+    # mexer, este teste acusa.
+    from src.depeg_risk import _fetch_chart, janelas_horarias
+    fim = 1679184000  # 2023-03-19 00:00 UTC — mesma janela citada no DEEP_DIVE (ES diário)
+    inicio = fim - 90 * 86400
+    pontos = {}
+    for start, span in janelas_horarias(inicio, fim):
+        for ts, price in _fetch_chart("usd-coin", start, span, "1h"):
+            pontos[ts] = price
+    precos = [p for _, p in sorted(pontos.items())]
+    assert len(precos) > 2000  # ~2160 esperado em 90d horário
+
+    desvios = desvio_peg(precos)
+    _, es = var_es_historico(desvios, confianca=0.97)
+    faixa, teto = classificar_risco_e_teto(es)
+
+    assert faixa == "baixo"                  # classificação sobrevive à mudança de granularidade
+    assert 0.035 < es < 0.05                 # ~4,18% medido — bem acima do 1,76% diário
+    assert es < 0.05 - 0.005                 # ainda dentro do corte, mas com folga apertada
+
+
 def test_avaliar_risco_atual_usdc_retorna_faixa_valida():
     # pipeline completo com dado real recente: fetch -> desvio -> VaR/ES -> classificação
     faixa, teto, es = avaliar_risco_atual("usd-coin", dias=90)
     assert faixa in ("baixo", "medio", "alto")
     assert 0.0 < teto <= 0.60
     assert es >= 0.0
+
+
+def test_avaliar_risco_atual_sem_dado_es_fallback_e_coerente_com_teto(monkeypatch):
+    # Achado #10: fallback antigo retornava ("medio", 0.30, es=0.0) — teto conservador (30%)
+    # mas haircut de liquidez ZERO (es=0.0 => 1-es=1 => sem desconto nenhum). Metade
+    # conservador: a API caiu, "sem dado pra concluir nada" tem que custar haircut > 0,
+    # não haircut nulo. O ES de fallback deve ser >0 e compatível com a própria faixa "medio".
+    import src.depeg_risk as dr
+    monkeypatch.setattr(dr, "historico_pontos_peg_horario", lambda *a, **k: [])
+    monkeypatch.setattr(dr, "historico_preco_peg", lambda *a, **k: [])
+    faixa, teto, es = dr.avaliar_risco_atual("usd-coin", dias=90)
+    assert faixa == "medio"
+    assert teto == 0.30
+    assert es > 0.0
+    # o ES de fallback tem que realmente classificar como "medio" se recalculado
+    assert dr.classificar_risco_e_teto(es) == ("medio", 0.30)
+
+
+def test_avaliar_risco_carteira_sem_dado_es_fallback_e_coerente_com_teto(monkeypatch):
+    import src.depeg_risk as dr
+    monkeypatch.setattr(dr, "historico_pontos_peg_horario", lambda *a, **k: [])
+    faixa, teto, es = dr.avaliar_risco_carteira({"usd-coin": 0.6, "tether": 0.4})
+    assert faixa == "medio"
+    assert teto == 0.30
+    assert es > 0.0
+    assert dr.classificar_risco_e_teto(es) == ("medio", 0.30)

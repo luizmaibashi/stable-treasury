@@ -27,6 +27,17 @@ TBILL_FALLBACK_PCT = 3.70
 # câmbio diferente pro mesmo instante — achado F5 da auditoria 2026-07-14).
 PTAX_FALLBACK = 5.7
 
+# Achado menor (auditoria 2026-07-30): lru_cache(maxsize=1) sem TTL nunca expira sozinho —
+# num processo Streamlit de longa duração (deploy real, ADR-0006), a PRIMEIRA consulta de
+# CDI/T-bill/PTAX fica congelada pro resto da vida do processo. TTL via "bucket de tempo":
+# a chave do cache muda a cada TTL_TAXAS_SEGUNDOS, forçando reconsulta sem precisar de
+# biblioteca externa de cache com expiração.
+TTL_TAXAS_SEGUNDOS = 3600  # 1h — CDI/T-bill/PTAX fixam ~1x/dia; isso só evita congelar por dias
+
+
+def _bucket_tempo(ttl_segundos: int = TTL_TAXAS_SEGUNDOS) -> int:
+    return int(time.time() // ttl_segundos)
+
 
 def preco_stablecoin(moeda: str = "usdt") -> float | None:
     if moeda == "usdt":
@@ -129,12 +140,12 @@ def preco_matic() -> float | None:
         return None
 
 
-def order_book_usdt_brl(limit: int = 100) -> dict | None:
-    # order book real de USDT/BRL (Binance). Retorna {'bids': [[preco, qty], ...],
+def _order_book(symbol: str, limit: int = 100) -> dict | None:
+    # order book real (Binance) pro par dado. Retorna {'bids': [[preco, qty], ...],
     # 'asks': [...]} com floats, ou None se a API falhar. Base do slippage medido (ADR-0011).
     try:
         resp = requests.get(
-            BINANCE_DEPTH_URL, params={"symbol": "USDTBRL", "limit": limit}, timeout=10
+            BINANCE_DEPTH_URL, params={"symbol": symbol, "limit": limit}, timeout=10
         )
         resp.raise_for_status()
         data = resp.json()
@@ -143,12 +154,22 @@ def order_book_usdt_brl(limit: int = 100) -> dict | None:
             "asks": [[float(p), float(q)] for p, q in data["asks"]],
         }
     except Exception as e:
-        logger.warning(f"Falha ao consultar order book USDT/BRL via Binance: {e}")
+        logger.warning(f"Falha ao consultar order book {symbol} via Binance: {e}")
         return None
 
 
-@lru_cache(maxsize=1)
-def taxa_cdi() -> float:
+def order_book_usdt_brl(limit: int = 100) -> dict | None:
+    return _order_book("USDTBRL", limit)
+
+
+def order_book_usdc_brl(limit: int = 100) -> dict | None:
+    # Achado #9 (auditoria 2026-07-30): USDC/BRL tem profundidade própria, distinta de
+    # USDT/BRL — usar o book do USDT pro slippage do USDC subestimava o atrito real.
+    return _order_book("USDCBRL", limit)
+
+
+@lru_cache(maxsize=8)
+def _taxa_cdi_cached(_bucket: int) -> float:
     # CDI anualizado (% a.a.) — referência de rendimento de cash-equivalent em BRL.
     try:
         resp = requests.get(BCB_CDI_URL, params={"formato": "json"}, timeout=10)
@@ -161,8 +182,15 @@ def taxa_cdi() -> float:
     return CDI_FALLBACK_PCT
 
 
-@lru_cache(maxsize=1)
-def taxa_tbill() -> float:
+def taxa_cdi() -> float:
+    return _taxa_cdi_cached(_bucket_tempo())
+
+
+taxa_cdi.cache_clear = _taxa_cdi_cached.cache_clear
+
+
+@lru_cache(maxsize=8)
+def _taxa_tbill_cached(_bucket: int) -> float:
     # T-bill (% a.a.) — referência de rendimento de cash-equivalent em USD.
     try:
         resp = requests.get(
@@ -183,8 +211,15 @@ def taxa_tbill() -> float:
     return TBILL_FALLBACK_PCT
 
 
-@lru_cache(maxsize=1)
-def ptax_venda() -> float | None:
+def taxa_tbill() -> float:
+    return _taxa_tbill_cached(_bucket_tempo())
+
+
+taxa_tbill.cache_clear = _taxa_tbill_cached.cache_clear
+
+
+@lru_cache(maxsize=8)
+def _ptax_venda_cached(_bucket: int) -> float | None:
     try:
         from datetime import datetime, timedelta
         hoje = datetime.now()
@@ -202,3 +237,10 @@ def ptax_venda() -> float | None:
     except Exception as e:
         logger.warning(f"Falha ao consultar PTAX via BCB SGS: {e}")
     return None
+
+
+def ptax_venda() -> float | None:
+    return _ptax_venda_cached(_bucket_tempo())
+
+
+ptax_venda.cache_clear = _ptax_venda_cached.cache_clear

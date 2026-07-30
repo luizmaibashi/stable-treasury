@@ -89,11 +89,20 @@ with tab_rails:
             value=False,
             help="Se marcado, aplica a BCB 561: stablecoin proibido como trilho de liquidação em eFX (vigência out/2026).",
         )
+        spread_wire = st.slider(
+            "Spread negociado no Wire (%)", min_value=0.0, max_value=3.0, value=2.5, step=0.1,
+            help="2,5% é spread de varejo/PME. Tesouraria corporativa em ticket grande negocia "
+                 "0,2–0,8%. A economia do stablecoin depende deste número tanto quanto do IOF "
+                 "(achado #1) — mexa no slider e veja a conclusão mudar.",
+        )
 
         if st.button("Comparar trilhos", type="primary"):
             with st.spinner("Consultando preços on-chain..."):
                 try:
-                    df = comparar_custos(valor, tipo_op, caso_uso=caso_uso, eletronico_cambio=efx)
+                    df = comparar_custos(
+                        valor, tipo_op, caso_uso=caso_uso, eletronico_cambio=efx,
+                        spread_wire_percent=spread_wire,
+                    )
                     st.session_state["df_custos"] = df
 
                     melhor = df[0]
@@ -104,6 +113,12 @@ with tab_rails:
                     st.success(f"Melhor trilho: **{melhor['trilho'][0]}** ({melhor['custo_percent'][0]:.2f}%)")
                     if economia > 0:
                         st.info(f"Economia potencial: R$ {economia:,.2f} ({pct:.2f} pp) vs. pior trilho")
+                    elif caso_uso == "domestico":
+                        st.caption(
+                            "Doméstico só tem PIX elegível hoje — sem TED como segundo trilho pra "
+                            "comparar (débito técnico conhecido, ver AGENTS.md). Esta aba não compara "
+                            "nada neste caso de uso; use Cross-border pra ver a comparação real."
+                        )
 
                     st.dataframe(
                         df,
@@ -116,6 +131,12 @@ with tab_rails:
                             "gas_brl": st.column_config.NumberColumn("Gas (R$)", format="%.2f"),
                             "custo_total_brl": st.column_config.NumberColumn("Custo Total (R$)", format="%.2f"),
                             "custo_percent": st.column_config.NumberColumn("Custo (%)", format="%.2f%%"),
+                            "defasagem_ptax_binance_pct": st.column_config.NumberColumn(
+                                "Defasagem PTAX×Binance (%)", format="%.2f%%",
+                                help="Divergência entre a PTAX (BCB, D-1) e o preço ao vivo na Binance. "
+                                     "Acima do limiar, o prêmio de on-ramp pode refletir câmbio se "
+                                     "movendo no dia, não o custo real do trilho (achado #8).",
+                            ),
                         },
                         hide_index=True,
                         width="stretch",
@@ -126,6 +147,37 @@ with tab_rails:
                         "(ADR-0008). A economia vs. Wire existe porque o stablecoin dribla o IOF de "
                         "eFX — arbitragem que a BCB 561 encerra em out/2026."
                     )
+
+                    if caso_uso == "cross_border":
+                        from src.comparador import spread_indiferenca_wire
+                        spread_indif = spread_indiferenca_wire(valor, tipo_op)
+                        if spread_indif < 0:
+                            st.caption(
+                                f"📐 Fronteira de indiferença: nenhum spread real de Wire (≥0%) "
+                                f"alcança o trilho stablecoin aqui — a arbitragem é estrutural "
+                                f"(IOF sozinho já garante a vantagem, achado #1)."
+                            )
+                        else:
+                            relacao = "ACIMA" if spread_wire > spread_indif else "ABAIXO"
+                            st.caption(
+                                f"📐 Fronteira de indiferença: com **{spread_indif:.2f}%** de spread "
+                                f"no Wire, os dois trilhos empatam. O slider está **{relacao}** desse "
+                                f"ponto — {'a conclusão atual é robusta neste tipo de operação' if relacao == 'ACIMA' else 'nesta faixa, o Wire já é mais barato — a manchete de economia não se sustenta aqui'} "
+                                f"(achado #1)."
+                            )
+
+                    from src.comparador import LIMIAR_DEFASAGEM_PTAX_PERCENT
+                    defasagens = [
+                        abs(d) for d in df["defasagem_ptax_binance_pct"].to_list() if d is not None
+                    ]
+                    if defasagens and max(defasagens) > LIMIAR_DEFASAGEM_PTAX_PERCENT:
+                        st.warning(
+                            f"⚠️ Defasagem PTAX×Binance de até {max(defasagens):.2f}% detectada. "
+                            "O prêmio de on-ramp compara preço cripto em tempo real com a PTAX de D-1 "
+                            "(BCB) — em dia de câmbio volátil, essa defasagem de fonte pode dominar o "
+                            "número, não o custo real de liquidez do trilho (achado #8; não há FX "
+                            "oficial intradiário gratuito para eliminar isso por completo)."
+                        )
                 except Exception as e:
                     st.error(f"Erro ao comparar: {e}")
 
@@ -198,7 +250,10 @@ with tab_compliance:
                 for a in resultado["avisos"]:
                     st.warning(a)
 
-            st.caption(f"Resoluções aplicadas: {', '.join(resultado['resolucoes_aplicadas'])}")
+            if resultado["resolucoes_aplicadas"]:
+                st.caption(f"Resoluções disparadas: {', '.join(resultado['resolucoes_aplicadas'])}")
+            else:
+                st.caption("Nenhuma resolução disparou para esta transação (BCB 561/520/521 avaliadas).")
 
 with tab_liquidity:
     st.header("Otimizador de Liquidez")
@@ -228,7 +283,10 @@ with tab_liquidity:
         )
         yield_atual = st.number_input(
             "Rendimento atual do caixa (% a.a.)", min_value=0.0, max_value=30.0, value=0.0, step=0.5,
-            help="Quanto sua reserva já rende hoje. 0% = conta não remunerada. Usado pra calcular o custo de carrego vs. CDI/T-bill (ADR-0010).",
+            help="Quanto sua reserva já rende hoje. O default (0%) é um CENÁRIO PIOR CASO — conta "
+                 "totalmente não remunerada. Tesouraria de grande porte normalmente já captura parte "
+                 "do CDI via sweep automático/fundo DI; ajuste para o seu caso real antes de tratar "
+                 "o número abaixo como decisão (achado #7).",
         )
         pct_usdc = st.slider(
             "Composição stablecoin: % USDC (resto USDT)", min_value=0, max_value=100, value=50, step=5,
@@ -256,10 +314,16 @@ with tab_liquidity:
             es_stablecoin=es_atual,
         )
 
-        col_m1, col_m2, col_m3 = st.columns(3)
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         col_m1.metric("Saldo Total (eq. BRL)", f"R$ {resultado['saldo_total_equivalent_brl']:,.0f}")
         col_m2.metric("Meses de Reserva", f"{resultado['meses_reserva_brl']}")
         col_m3.metric("Converter → BRL (gap reserva)", f"R$ {resultado['converter_usdt_para_brl']:,.0f}")
+        col_m4.metric(
+            "Exposição Cambial Líquida (30d)", f"US$ {resultado['exposicao_liquida_usd_30d']:,.0f}",
+            help="Recebimento − pagamento em USD. Negativo = SHORT dólar (paga mais do que "
+                 "recebe) — a decisão de hedge usa este número, não só 'tem recebimento em USD?' "
+                 "(achado #6, corrige recomendação invertida pra perfil com passivo em USD).",
+        )
 
         st.success(resultado["recomendacao_liquidez"])
         st.info(resultado["recomendacao_cambio"])
@@ -315,10 +379,18 @@ with tab_liquidity:
 
         st.warning(
             f"A reserva está correta (cash), mas **parada rendendo {yield_atual:.1f}%**. "
-            f"Movendo para fundo DI / money market — que **continua sendo cash-equivalent**, "
-            f"sem mudar o perfil de risco nem o compliance — você captura "
-            f"**R$ {carrego['gap_total_anual_brl']:,.0f}/ano** sem risco adicional."
+            f"Movendo cada perna para o cash-equivalent do seu próprio mercado (fundo DI/BRL, "
+            f"money market/USD) — **sem mudar o perfil de risco de depeg nem o compliance** — "
+            f"você captura até **R$ {carrego['gap_total_anual_brl']:,.0f}/ano**."
         )
+        if carrego["alerta_carry_trade"]:
+            st.info(
+                f"⚠️ Achado #7: o diferencial CDI−T-bill aqui é **{carrego['diferencial_juros_cdi_tbill_pct']:.1f}pp** "
+                "— por paridade DESCOBERTA de juros, isso aproxima a depreciação cambial ESPERADA do "
+                "BRL, não é rendimento sem contrapartida. A perna BRL do 'deixado na mesa' é em parte "
+                "prêmio de carry trade cambial: sem risco de DEPEG (correto), mas não sem risco "
+                "cambial algum — não confundir 'cash-equivalent' com 'risco zero'."
+            )
         st.caption(
             "Custo de carrego = valor parado × (taxa de referência − yield atual). "
             "CDI via BCB SGS 4389, T-bill via US Treasury (fiscaldata) — ambos ao vivo. "
@@ -333,6 +405,15 @@ with tab_liquidity:
             f"→ teto de alocação em stablecoin = {teto_risco:.0%} (calibrado com ES real dos eventos "
             "USDC-SVB mar/2023 e UST mai/2022 — ver ADR-0003)"
         )
+        from src.depeg_risk import ES_STRESSED_FLOOR_SVB
+        if es_atual < ES_STRESSED_FLOOR_SVB:
+            st.caption(
+                f"⚠️ Achados #3/#4: ES histórico é procíclico — em regime calmo como agora "
+                f"({es_atual:.2%}), o haircut de liquidez usado acima NÃO cai para esse valor. "
+                f"Ele tem um **piso de ES estressado** ({ES_STRESSED_FLOOR_SVB:.2%}, medido no "
+                "próprio evento USDC-SVB em granularidade horária) — protege contra o risco de "
+                "cauda que só reaparece quando a próxima crise já começou."
+            )
 
 with tab_risco:
     st.header("Risco de Depeg ao longo do tempo")

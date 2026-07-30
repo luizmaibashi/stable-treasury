@@ -2,14 +2,14 @@ import polars as pl
 try:
     from src.comparador import (
         comparar_custos, gerar_faturas_sinteticas, slippage_por_volume,
-        vwap_execucao,
+        vwap_execucao, spread_indiferenca_wire,
     )
 except ImportError:
     import sys
     sys.path.insert(0, ".")
     from src.comparador import (
         comparar_custos, gerar_faturas_sinteticas, slippage_por_volume,
-        vwap_execucao,
+        vwap_execucao, spread_indiferenca_wire,
     )
 
 
@@ -39,6 +39,76 @@ def test_slippage_execucao_cai_no_fallback_sem_book(monkeypatch):
     import src.comparador as cmp
     monkeypatch.setattr(cmp, "order_book_usdt_brl", lambda *a, **k: None)
     assert cmp.slippage_execucao(5_000_000) == slippage_por_volume(5_000_000)
+
+
+# --- Achado #9 (auditoria 2026-07-30): slippage do USDC no book errado (USDT) ---
+
+def test_slippage_execucao_usdc_usa_book_proprio_nao_o_do_usdt(monkeypatch):
+    import src.comparador as cmp
+    # books com profundidades bem diferentes: USDT líquido, USDC raso
+    monkeypatch.setattr(cmp, "order_book_usdt_brl", lambda *a, **k: {
+        "bids": [[5.00, 1_000_000.0]], "asks": [[5.00, 1_000_000.0]],
+    })
+    monkeypatch.setattr(cmp, "order_book_usdc_brl", lambda *a, **k: {
+        "bids": [[5.00, 100.0]], "asks": [[5.00, 100.0]],
+    })
+    slip_usdt = cmp.slippage_execucao(400_000, moeda="usdt")
+    slip_usdc = cmp.slippage_execucao(400_000, moeda="usdc")
+    assert slip_usdt == 0.0          # book fundo, sem atrito
+    assert slip_usdc > slip_usdt     # book raso do USDC não cobre o volume -> cai no fallback por faixa
+
+
+# --- Achado #8 (auditoria 2026-07-30): prêmio de on-ramp mistura FX (PTAX D-1) com
+# liquidez (preço cripto tempo real). Não dá pra "resolver" sem FX intradiário pago —
+# a correção honesta é EXPOR a defasagem, não escondê-la (mesmo princípio do ADR-0011 §6).
+
+def test_defasagem_ptax_binance_calcula_divergencia_relativa():
+    from src.comparador import _defasagem_pct
+    assert abs(_defasagem_pct(mid=5.75, ptax=5.70) - ((5.75 - 5.70) / 5.70 * 100)) < 1e-9
+
+
+def test_defasagem_ptax_binance_none_sem_mid():
+    from src.comparador import _defasagem_pct
+    assert _defasagem_pct(mid=None, ptax=5.70) is None
+
+
+def test_comparar_custos_expoe_defasagem_ptax_binance(monkeypatch):
+    # PTAX (D-1) = 5,70; Binance mid = 5,80 -> defasagem ~1,75%, acima do limiar de ruído.
+    import src.comparador as cmp
+    monkeypatch.setattr(cmp, "ptax_venda", lambda: 5.70)
+    monkeypatch.setattr(cmp, "order_book_usdt_brl", lambda *a, **k: {
+        "bids": [[5.79, 1_000_000.0]], "asks": [[5.81, 1_000_000.0]],
+    })
+    monkeypatch.setattr(cmp, "order_book_usdc_brl", lambda *a, **k: {
+        "bids": [[5.70, 1_000_000.0]], "asks": [[5.70, 1_000_000.0]],
+    })
+    df = cmp.comparar_custos(50_000, caso_uso="cross_border")
+    usdt = df.filter(pl.col("trilho") == "USDT (Polygon)")
+    usdc = df.filter(pl.col("trilho") == "USDC (Polygon)")
+    assert usdt["defasagem_ptax_binance_pct"][0] > cmp.LIMIAR_DEFASAGEM_PTAX_PERCENT
+    assert abs(usdc["defasagem_ptax_binance_pct"][0]) < 1e-6  # sem divergência: mid == ptax
+
+
+def test_comparar_custos_busca_order_book_uma_vez_por_moeda(monkeypatch):
+    # antes do fix, cada um dos 4 trilhos stablecoin (USDT-ERC20/Polygon, USDC-ERC20/Polygon)
+    # chamava slippage_execucao -> 4 chamadas de rede pro MESMO valor_brl, quando só existem
+    # 2 books distintos (USDT e USDC) a consultar.
+    import src.comparador as cmp
+    chamadas = {"usdt": 0, "usdc": 0}
+
+    def _book_usdt(*a, **k):
+        chamadas["usdt"] += 1
+        return {"bids": [[5.00, 1_000_000.0]], "asks": [[5.00, 1_000_000.0]]}
+
+    def _book_usdc(*a, **k):
+        chamadas["usdc"] += 1
+        return {"bids": [[5.00, 1_000_000.0]], "asks": [[5.00, 1_000_000.0]]}
+
+    monkeypatch.setattr(cmp, "order_book_usdt_brl", _book_usdt)
+    monkeypatch.setattr(cmp, "order_book_usdc_brl", _book_usdc)
+    cmp.comparar_custos(50_000, caso_uso="cross_border")
+    assert chamadas["usdt"] == 1
+    assert chamadas["usdc"] == 1
 
 
 # --- ponto C (ADR-0010): slippage por volume, aproximação documentada ---
@@ -83,6 +153,69 @@ def test_comparador_ordenado_por_custo():
     df = comparar_custos(50000)
     custos = df["custo_total_brl"].to_list()
     assert custos == sorted(custos)
+
+
+# --- Achado #1 (auditoria 2026-07-30): manchete de "~90% de economia" depende de duas
+# constantes (IOF + SPREAD_WIRE_PERCENT fixo em 2,5%, spread de varejo). Tesouraria
+# corporativa negocia spread bem menor — o spread precisa ser parâmetro, e a fronteira
+# onde a conclusão inverte precisa ser calculável, não escondida.
+
+def test_spread_wire_e_configuravel():
+    caro = comparar_custos(1_000_000, spread_wire_percent=2.5)
+    barato = comparar_custos(1_000_000, spread_wire_percent=0.5)
+    wire_caro = caro.filter(pl.col("trilho") == "Wire (SWIFT)")["custo_total_brl"][0]
+    wire_barato = barato.filter(pl.col("trilho") == "Wire (SWIFT)")["custo_total_brl"][0]
+    assert wire_barato < wire_caro
+
+
+def test_fronteira_indiferenca_bate_no_ponto_exato(monkeypatch):
+    # no spread de indiferença, Wire e o melhor trilho stablecoin custam (quase) o mesmo.
+    # Determinístico (sem rede) — CoinGecko/Binance ao vivo têm rate-limit e variam entre
+    # as duas chamadas (cálculo da fronteira + verificação), o que quebraria a igualdade.
+    import src.comparador as cmp
+    monkeypatch.setattr(cmp, "preco_stablecoin", lambda moeda: None)
+    monkeypatch.setattr(cmp, "ptax_venda", lambda: 5.70)
+    monkeypatch.setattr(cmp, "order_book_usdt_brl", lambda *a, **k: None)
+    monkeypatch.setattr(cmp, "order_book_usdc_brl", lambda *a, **k: None)
+    monkeypatch.setattr(cmp, "gas_fee_eth", lambda: {"avg_gwei": 20})
+    monkeypatch.setattr(cmp, "gas_fee_polygon", lambda: {"avg_gwei": 50})
+    monkeypatch.setattr(cmp, "preco_eth", lambda: 1800.0)
+    monkeypatch.setattr(cmp, "preco_matic", lambda: 0.50)
+
+    valor = 1_000_000
+    tipo = "remessa_internacional_terceiros"
+    spread_indif = spread_indiferenca_wire(valor, tipo)
+    assert spread_indif is not None
+
+    df = comparar_custos(valor, tipo, caso_uso="cross_border", spread_wire_percent=spread_indif)
+    wire_total = df.filter(pl.col("trilho") == "Wire (SWIFT)")["custo_total_brl"][0]
+    melhor_stablecoin = df.filter(pl.col("trilho") != "Wire (SWIFT)")["custo_total_brl"].min()
+    assert abs(wire_total - melhor_stablecoin) < 1.0  # tolerância de arredondamento (R$1)
+
+
+def test_fronteira_indiferenca_importacao_bens_alcancavel_remessa_estrutural(monkeypatch):
+    # IOF isento (ADR-0011 §1, importacao_bens): a folga de IOF que sustenta a manchete
+    # desaparece, então a fronteira de indiferença fica num spread de Wire POSITIVO e
+    # realista de se negociar (achado #1 do review: com spread ~0,5%, stablecoin já perde
+    # aqui). Já em remessa a terceiros (IOF 3,5%), a fronteira é profundamente NEGATIVA —
+    # nenhum spread real de Wire (sempre ≥0%) alcança; a arbitragem é estrutural, não
+    # depende do spread negociado. Isola o efeito do IOF fixando o resto determinístico —
+    # CoinGecko/Binance ao vivo têm rate-limit e variam entre as duas chamadas.
+    import src.comparador as cmp
+    monkeypatch.setattr(cmp, "preco_stablecoin", lambda moeda: None)  # força fallback fixo
+    monkeypatch.setattr(cmp, "ptax_venda", lambda: 5.70)
+    monkeypatch.setattr(cmp, "order_book_usdt_brl", lambda *a, **k: None)
+    monkeypatch.setattr(cmp, "order_book_usdc_brl", lambda *a, **k: None)
+    monkeypatch.setattr(cmp, "gas_fee_eth", lambda: {"avg_gwei": 20})
+    monkeypatch.setattr(cmp, "gas_fee_polygon", lambda: {"avg_gwei": 50})
+    monkeypatch.setattr(cmp, "preco_eth", lambda: 1800.0)
+    monkeypatch.setattr(cmp, "preco_matic", lambda: 0.50)
+
+    spread_bens = spread_indiferenca_wire(1_000_000, "importacao_bens")
+    spread_remessa = spread_indiferenca_wire(1_000_000, "remessa_internacional_terceiros")
+    assert 0 < spread_bens < 5        # realista de negociar -> a conclusão PODE inverter
+    assert spread_remessa < 0         # nenhum spread real de Wire alcança -> ganha sempre
+    assert spread_bens > spread_remessa
 
 
 def test_wire_tem_spread_e_iof_positivos():

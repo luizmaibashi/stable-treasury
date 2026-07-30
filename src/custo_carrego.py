@@ -9,6 +9,17 @@ from .coletor_precos import taxa_cdi, taxa_tbill, ptax_venda, PTAX_FALLBACK
 
 DIAS_ANO = 365
 
+# Achado #7 (auditoria 2026-07-30): CDI (BRL) e T-bill (USD) são cash-equivalents em
+# MOEDAS diferentes — somar os dois gaps é correto como agregação contábil, mas o
+# diferencial CDI−T-bill aproxima, por paridade DESCOBERTA de juros, a depreciação
+# esperada do BRL. Ler "gap_total_anual_brl" como dinheiro parado sem risco algum
+# esconde que a perna BRL é, em parte, prêmio de carry trade cambial — não é risco
+# adicional no sentido do Depeg Engine, mas também não é "sem risco" no sentido de
+# custo de carrego de uma reserva de cash. Acima deste limiar, o diferencial já é
+# grande o bastante pra dominar a leitura do número. Disclaimer, não correção
+# (o diferencial de juros é dado real observável, não um erro a consertar).
+LIMIAR_CARRY_TRADE_PERCENT = 5.0
+
 
 def custo_carrego(
     valor_parado: float, taxa_referencia_pct: float, yield_atual_pct: float = 0.0
@@ -47,6 +58,10 @@ def custo_oportunidade_reserva(
     gap_usd_anual_brl = usd["gap_anual"] * ptax  # converte o gap de USD pra BRL
 
     total = brl["gap_anual"] + gap_usd_anual_brl
+    # Achado #7: diferencial de juros entre as duas moedas de referência — por paridade
+    # descoberta de juros, aproxima a depreciação cambial ESPERADA do BRL. Não é erro
+    # matemático (a soma dos dois gaps está correta), é contexto que falta na leitura.
+    diferencial_juros_cdi_tbill_pct = cdi_pct - tbill_pct
     return {
         "cdi_pct": cdi_pct,
         "tbill_pct": tbill_pct,
@@ -56,4 +71,6 @@ def custo_oportunidade_reserva(
         "gap_usd_anual_brl": round(gap_usd_anual_brl, 2),
         "gap_total_anual_brl": round(total, 2),
         "gap_total_diario_brl": round(total / DIAS_ANO, 2),
+        "diferencial_juros_cdi_tbill_pct": round(diferencial_juros_cdi_tbill_pct, 4),
+        "alerta_carry_trade": diferencial_juros_cdi_tbill_pct > LIMIAR_CARRY_TRADE_PERCENT,
     }

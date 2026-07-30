@@ -97,6 +97,27 @@ def classificar_risco_e_teto(es: float) -> tuple[str, float]:
     return FAIXAS_RISCO[-1][0], FAIXAS_RISCO[-1][2]
 
 
+# Achado #10 (auditoria 2026-07-30): o fallback de "sem dado" (API fora do ar) retornava
+# es=0.0 junto com a faixa "medio" — teto de alocação conservador (30%), mas haircut de
+# liquidez NULO (valor × (1 − 0.0) = valor cheio, sem desconto nenhum). Metade conservador:
+# "sem dado pra concluir nada" tem que custar caro na liquidez, não custar zero. O piso
+# escolhido é a fronteira inferior da própria faixa "medio" (limite superior de "baixo") —
+# o menor ES que ainda classificaria como "medio" se fosse medido de verdade.
+ES_FALLBACK_SEM_DADO = FAIXAS_RISCO[0][1]  # 0.05
+
+# Achados #3/#4 (auditoria 2026-07-30): VaR/ES por simulação histórica é PROCÍCLICO — dá
+# risco mínimo bem antes da crise (regime calmo) e máximo só depois do evento já ter
+# passado (quando a janela de 90d ainda contém os piores dias). Em regime calmo, o ES(97%)
+# medido fica perto de zero e o haircut de liquidez (otimizador.py) desaparece junto — essa
+# é EXATAMENTE a crítica que fez Basel III/FRTB exigir, além do ES corrente, um "stressed ES"
+# calibrado num período de estresse histórico, como PISO. Medido com o motor real (teste
+# `test_es_horario_real_da_janela_svb_ainda_classifica_baixo_mas_com_margem_estreita`):
+# ES(97%) horário do evento USDC-SVB (mar/2023) ≈ 4,18%. Vira piso do haircut de liquidez —
+# NÃO piso da classificação de risco/teto de alocação (essa continua seguindo o regime
+# corrente, por design do ADR-0004; só o haircut de liquidez é protegido de colapsar a zero).
+ES_STRESSED_FLOOR_SVB = 0.0418
+
+
 def tamanho_cauda(n_amostras: int, confianca: float = 0.97) -> int:
     # nº de observações na cauda que formam o ES. Exposto pra transparência de robustez:
     # janela curta + confiança alta => cauda rasa (ex: 90 dias @ 97% => 3 amostras),
@@ -149,7 +170,7 @@ def avaliar_risco_carteira(
     series = {i: historico_pontos_peg_horario(i, dias=dias) for i in pesos}
     desvios = desvio_carteira(series, pesos)
     if len(desvios) < 2:
-        return "medio", 0.30, 0.0  # dado insuficiente → fallback conservador
+        return "medio", 0.30, ES_FALLBACK_SEM_DADO  # dado insuficiente → fallback conservador (#10)
     _, es = var_es_historico(desvios, confianca=confianca)
     faixa, teto = classificar_risco_e_teto(es)
     return faixa, teto, es
@@ -173,8 +194,8 @@ def avaliar_risco_atual(
         precos = historico_preco_peg(coingecko_id, inicio, dias=dias)
 
     if len(precos) < 2:
-        # sem dado (API fora do ar): fallback conservador = faixa "medio"
-        return "medio", 0.30, 0.0
+        # sem dado (API fora do ar): fallback conservador = faixa "medio" (#10)
+        return "medio", 0.30, ES_FALLBACK_SEM_DADO
     desvios = desvio_peg(precos)
     _, es = var_es_historico(desvios, confianca=confianca)
     faixa, teto = classificar_risco_e_teto(es)

@@ -9,6 +9,7 @@
 #     teto de depeg [ES, do Depeg Engine], espaço fora da reserva).
 #   - ES vira haircut de liquidez da stablecoin.
 from .coletor_precos import ptax_venda, PTAX_FALLBACK
+from .depeg_risk import ES_STRESSED_FLOOR_SVB
 
 # Parâmetros de política (defaults conservadores, configuráveis — ADR-0009 §2)
 DCOH_RESERVA_DIAS = 60            # 2 meses de opex em cash (buffer operacional de empresa grande)
@@ -33,6 +34,12 @@ def otimizar_alocacao(
     ptax = ptax_venda() or PTAX_FALLBACK
     total_brl = saldo_brl + (saldo_usdt * ptax) + (saldo_usd * ptax)
     exportador = previsao_recebimento_usd_30d > 0
+    # Achado #6 (auditoria 2026-07-30): a decisão de hedge precisa olhar a EXPOSIÇÃO
+    # LÍQUIDA (recebimento - pagamento), não só "tem recebimento em USD?". Uma empresa
+    # com passivo pesado em USD (ex: aérea com leasing/combustível) pode ter recebimento
+    # > 0 e ainda assim ser líquida SHORT dólar (recebe 50k, paga 250k) — nesse caso
+    # precisa de MAIS hedge em USD, não menos.
+    exposicao_liquida_usd_30d = previsao_recebimento_usd_30d - previsao_pagamento_usd_30d
     meses_reserva = saldo_brl / previsao_gasto_brl_30d if previsao_gasto_brl_30d > 0 else 99
 
     # --- Reserva operacional em CASH (BRL), por DCOH ---
@@ -54,16 +61,26 @@ def otimizar_alocacao(
     cash_frac = 1.0 - stablecoin_frac
     brl_frac = min(reserva_frac, cash_frac)
     excedente_frac = cash_frac - brl_frac
-    if exportador:
-        usd_frac = excedente_frac      # receita em dólar: excedente vira hedge natural em USD
+    if exposicao_liquida_usd_30d != 0:
+        # exposição líquida != 0 (long OU short em USD): manter/reforçar hedge natural em
+        # USD reduz risco cambial nos dois sentidos. Só quando a exposição é zerada
+        # (recebimento == pagamento) o excedente não tem função de hedge e vira BRL.
+        usd_frac = excedente_frac
     else:
         usd_frac = 0.0
-        brl_frac += excedente_frac     # sem receita em dólar: excedente fica em BRL
+        brl_frac += excedente_frac
 
     alocacao_pct = {"BRL": brl_frac, "USD": usd_frac, "stablecoin": stablecoin_frac}
 
-    # --- ES como haircut de liquidez da stablecoin (ADR-0009) ---
-    valor_liquidez_stablecoin_brl = stablecoin_frac * total_brl * (1 - es_stablecoin)
+    # --- ES como haircut de liquidez da stablecoin (ADR-0009), com PISO de ES estressado
+    # (achados #3/#4): VaR/ES histórico é procíclico — em regime calmo, es_stablecoin medido
+    # fica perto de zero e o haircut desapareceria junto, escondendo o risco de cauda que só
+    # volta a aparecer quando a próxima crise já começou. O piso (ES real do evento USDC-SVB,
+    # mar/2023, medido a 4,18% horário) garante um desconto mínimo de liquidez mesmo em
+    # regime calmo. Quando o risco medido é PIOR que o piso (crise real em curso), usa o
+    # medido — o piso nunca abranda uma crise real, só evita colapso a zero em calmaria.
+    es_haircut = max(es_stablecoin, ES_STRESSED_FLOOR_SVB)
+    valor_liquidez_stablecoin_brl = stablecoin_frac * total_brl * (1 - es_haircut)
 
     # --- Ação de liquidez: gap de reserva em cash ---
     if meses_reserva < (dcoh_reserva_dias / 30):
@@ -76,10 +93,19 @@ def otimizar_alocacao(
         recomendacao_liquidez = f"Reserva BRL confortável ({meses_reserva:.1f} meses)"
         converter_para_brl = 0.0
 
-    recomendacao_cambio = (
-        "Manter posição em USD (receita em dólar) — hedge natural ativo" if exportador
-        else "Converter USD excedente para BRL ou USDT (sem receita em dólar)"
-    )
+    if exposicao_liquida_usd_30d > 0:
+        recomendacao_cambio = (
+            f"Manter posição em USD (recebimento líquido de US$ {exposicao_liquida_usd_30d:,.0f} "
+            "em 30d) — hedge natural ativo"
+        )
+    elif exposicao_liquida_usd_30d < 0:
+        recomendacao_cambio = (
+            f"Manter/reforçar posição em USD — exposição líquida SHORT de "
+            f"US$ {abs(exposicao_liquida_usd_30d):,.0f} em 30d (paga mais dólar do que recebe); "
+            "liquidar USD aumentaria o risco cambial, não reduziria"
+        )
+    else:
+        recomendacao_cambio = "Converter USD excedente para BRL ou USDT (exposição cambial líquida zerada)"
 
     return {
         "saldo_total_equivalent_brl": round(total_brl, 2),
@@ -89,13 +115,14 @@ def otimizar_alocacao(
         "manter_usd": round((usd_frac * total_brl) / ptax, 2),
         "converter_usdt_para_brl": round(converter_para_brl, 2),
         "exportador": exportador,
+        "exposicao_liquida_usd_30d": exposicao_liquida_usd_30d,
         "recomendacao_cambio": recomendacao_cambio,
         "recomendacao_liquidez": recomendacao_liquidez,
         "alocacao_stablecoin_pct": round(stablecoin_frac, 4),  # realizado (giro capado)
         "faixa_risco_stablecoin": faixa_risco_stablecoin,
         "valor_liquidez_stablecoin_brl": round(valor_liquidez_stablecoin_brl, 2),
         "alocacao_pct": {k: round(v, 4) for k, v in alocacao_pct.items()},
-        "sugestao": _gerar_sugestao(total_brl, alocacao_pct, es_stablecoin),
+        "sugestao": _gerar_sugestao(total_brl, alocacao_pct, es_haircut),
     }
 
 

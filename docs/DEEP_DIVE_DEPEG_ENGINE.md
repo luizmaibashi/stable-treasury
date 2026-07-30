@@ -59,8 +59,10 @@ Três razões, todas defensáveis:
 ### Confiança de 97%
 Não é número redondo arbitrário — é **alinhamento a Basel III / FRTB**, que padronizou **ES a 97,5%** como a métrica regulatória de risco de mercado. Adotar ~97% coloca o modelo no mesmo nível de conservadorismo que um banco usa.
 
-### A fragilidade que assumimos abertamente (e como foi resolvida)
-90 dias × 3% = **3 dias na cauda** (diário). Três pontos é uma cauda **rasa** — o ES fica ruidoso e sensível a um único outlier. **Isso foi resolvido no ADR-0011:** o risco atual passou a usar **série horária** — 90 dias = ~2.160 pontos → cauda de **~65 horas**, estatisticamente robusta, e captura o mínimo intra-dia real (o diário suavizava).
+### A fragilidade que assumimos abertamente (e como foi resolvida — e o que ainda não foi)
+90 dias × 3% = **3 dias na cauda** (diário). Três pontos é uma cauda **rasa** — o ES fica ruidoso e sensível a um único outlier. **Isso foi parcialmente resolvido no ADR-0011:** o risco atual passou a usar **série horária** — 90 dias = ~2.160 pontos → cauda de **~65 horas**, e captura o mínimo intra-dia real (o diário suavizava).
+
+**O que a granularidade horária resolve, e o que não resolve (ADR-0012 #2):** medindo o motor de verdade contra a mesma janela do SVB, o ES(97%) horário é **4,18%** — bem maior que o 1,76% diário, e ainda "baixo" (corte é 5%), mas com margem de segurança de só **0,82pp** (era 3,24pp no diário). A granularidade horária deixou o número **mais informativo** (captura o mínimo real 0,8767), mas **não** deixou a cauda mais **robusta** no sentido estatístico: as ~65 horas não são 65 eventos independentes — são a mesma crise de poucos dias reamostrada em granularidade fina (autocorrelação). O n efetivo de eventos de cauda segue perto de 1-3, não 65. É por isso que o haircut de liquidez ganhou um **piso de ES estressado** (4,18%, ADR-0012 #3/#4): não porque a cauda ficou robusta, mas porque o VaR histórico é procíclico (dá risco ~0 em regime calmo) e precisa de um piso vindo de um evento real, não da simulação corrente.
 
 ---
 

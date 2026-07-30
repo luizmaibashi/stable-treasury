@@ -40,11 +40,11 @@ Modelado segundo a estrutura clássica de tesouraria — **não** como um "dashb
 
 | Pilar | O que faz | Rigor |
 |-------|-----------|-------|
-| **Cash Management** | Rail Comparator: custo all-in por trilho, segmentado por caso de uso (doméstico × cross-border) | Custo do trilho stablecoin inclui on-ramp (prêmio real) + gas + off-ramp; slippage medido no **order book real** (Binance VWAP) |
-| **Risk / Hedging** | Depeg Risk Engine: VaR/ES sobre carteira real (USDC+USDT ponderados), série **horária** | Correlação emerge do dado; cauda de ~65 amostras; captura mínimo intra-dia real (0,8767) |
-| **Capital Markets & Funding** | Custo de carrego da reserva de cash (BRL vs CDI, USD vs T-bill) | Taxas **ao vivo** (BCB SGS + US Treasury); reserva é **cash** — stablecoin não é caixa equivalente (US GAAP/IFRS, ASU 2023-08) |
+| **Cash Management** | Rail Comparator: custo all-in por trilho, segmentado por caso de uso (doméstico × cross-border) | Custo do trilho stablecoin inclui on-ramp (prêmio real) + gas + off-ramp; slippage medido no **order book real e da moeda certa** (Binance VWAP, USDT e USDC separados); spread do Wire é **parâmetro configurável** (não constante fixa) com **fronteira de indiferença** calculável |
+| **Risk / Hedging** | Depeg Risk Engine: VaR/ES sobre carteira real (USDC+USDT ponderados), série **horária** | Correlação emerge do dado; ES(97%) do evento SVB medido ao vivo em 4,18% horário (margem de 0,82pp até o corte de risco); haircut de liquidez tem **piso de ES estressado** contra a proclicidade do VaR histórico |
+| **Capital Markets & Funding** | Custo de carrego da reserva de cash (BRL vs CDI, USD vs T-bill) | Taxas **ao vivo** (BCB SGS + US Treasury); reserva é **cash** — stablecoin não é caixa equivalente (US GAAP/IFRS, ASU 2023-08); diferencial CDI−T-bill sinalizado como carry trade cambial, não "dinheiro sem risco" |
 
-**Decisão-chave de conformidade:** a reserva de emergência é **cash-only**. Stablecoin entra apenas como **capital de giro em trânsito** no trilho, com teto triplo (necessidade de fluxo / cap de política 5% / teto de depeg) e haircut pelo ES. Perfil de referência ancorado em **Azul S.A. FY2024** (aérea com passivo em USD — caso de livro-texto de tesouraria cambial).
+**Decisão-chave de conformidade:** a reserva de emergência é **cash-only**. Stablecoin entra apenas como **capital de giro em trânsito** no trilho, com teto triplo (necessidade de fluxo / cap de política 5% / teto de depeg) e haircut pelo ES. Perfil de referência ancorado em **Azul S.A. FY2024** (aérea com passivo em USD — caso de livro-texto de tesouraria cambial). Decisão de hedge cambial usa a **exposição líquida** (recebimento − pagamento), não só "existe recebimento em USD?" — protege perfis com passivo pesado como o da Azul.
 
 ---
 
@@ -75,7 +75,7 @@ streamlit run app.py
 Para produção sem Docker, aponte `DATABASE_URL` para um Postgres gerenciado (ex: Neon free tier) — só a variável de ambiente muda, o código não (ver [ADR-0006](docs/adr/0006-deploy-publico-streamlit-neon.md)).
 
 ```bash
-# Testes (73)
+# Testes (94)
 python -m pytest -q
 ```
 
@@ -103,6 +103,8 @@ coletor_precos.py   ← única porta de rede (CoinGecko, DefiLlama, BCB, Treasur
 ## O que este projeto assume abertamente
 
 Rigor é também saber o que **não** se sabe. Débitos técnicos, premissas e escopo negativo estão documentados em [`AGENTS.md`](AGENTS.md) — incluindo a decisão consciente de **não** transformar o cap de política de risco (5%) em "medição": é uma decisão normativa de board, não uma quantidade de mercado. Fingir uma fórmula ali seria o "número mágico" que o projeto combate.
+
+Auditoria mais recente (2026-07-30, [ADR-0012](docs/adr/0012-auditoria-2026-07-30-correcoes.md)): corrigiu um erro de sinal no hedge cambial (recomendava liquidar USD numa exposição líquida SHORT), uma incoerência entre teto e haircut de risco no fallback do motor, e expôs — sem fingir resolver — três limitações estruturais que não têm solução gratuita: a defasagem entre PTAX (D-1) e preço cripto em tempo real, o diferencial de juros CDI×T-bill como carry trade (não "dinheiro grátis"), e a proclicidade do VaR histórico (mitigada com um piso de ES estressado, não eliminada).
 
 ---
 

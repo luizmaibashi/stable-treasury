@@ -57,3 +57,26 @@ def test_custo_oportunidade_zero_sem_caixa():
         reserva_brl=0, posicao_usd=0, ptax=5.5, cdi_pct=14.15, tbill_pct=3.7,
     )
     assert r["gap_total_anual_brl"] == 0.0
+
+
+# --- Achado #7 (auditoria 2026-07-30): o diferencial CDI-T-bill não é "dinheiro grátis" —
+# por paridade descoberta de juros, ele aproxima a depreciação esperada do BRL. Somar os
+# dois gaps sem essa ressalva sugere "capturar 10pp sem risco", quando na verdade é
+# carry trade descoberto. A correção é EXPOR o diferencial, não escondê-lo.
+
+def test_custo_oportunidade_expoe_diferencial_de_juros_cdi_tbill():
+    r = custo_oportunidade_reserva(
+        reserva_brl=300_000_000, posicao_usd=30_000_000, ptax=5.5,
+        cdi_pct=14.15, tbill_pct=3.70,
+    )
+    assert abs(r["diferencial_juros_cdi_tbill_pct"] - (14.15 - 3.70)) < 1e-9
+
+
+def test_custo_oportunidade_sinaliza_carry_trade_quando_diferencial_e_grande():
+    from src.custo_carrego import LIMIAR_CARRY_TRADE_PERCENT
+    r = custo_oportunidade_reserva(
+        reserva_brl=300_000_000, posicao_usd=30_000_000, ptax=5.5,
+        cdi_pct=14.15, tbill_pct=3.70,
+    )
+    assert (14.15 - 3.70) > LIMIAR_CARRY_TRADE_PERCENT
+    assert r["alerta_carry_trade"] is True

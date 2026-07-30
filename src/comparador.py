@@ -2,7 +2,7 @@ import polars as pl
 from .iof_tabela import aliquota_iof
 from .coletor_precos import (
     preco_stablecoin, preco_eth, preco_matic, gas_fee_eth, gas_fee_polygon,
-    ptax_venda, PTAX_FALLBACK, order_book_usdt_brl,
+    ptax_venda, PTAX_FALLBACK, order_book_usdt_brl, order_book_usdc_brl,
 )
 from .compliance import filtrar_trilhos_permitidos
 
@@ -53,16 +53,43 @@ def vwap_execucao(niveis: list[list[float]], valor_brl: float) -> float | None:
     return None  # profundidade insuficiente
 
 
-def slippage_execucao(valor_brl: float) -> float:
-    # slippage MEDIDO no order book real (Binance): (VWAP − mid) / mid. Cai pro fallback
-    # heurístico (slippage_por_volume) se a API falhar ou o book não cobrir o volume.
-    book = order_book_usdt_brl()
+def _mid_do_book(book: dict | None) -> float | None:
     if book and book["asks"] and book["bids"]:
-        mid = (book["asks"][0][0] + book["bids"][0][0]) / 2
+        return (book["asks"][0][0] + book["bids"][0][0]) / 2
+    return None
+
+
+def _slippage_do_book(book: dict | None, valor_brl: float) -> float:
+    mid = _mid_do_book(book)
+    if mid is not None and mid > 0:
         vwap = vwap_execucao(book["asks"], valor_brl)
-        if vwap is not None and mid > 0:
+        if vwap is not None:
             return max(0.0, (vwap - mid) / mid)
     return slippage_por_volume(valor_brl)  # fallback documentado
+
+
+def slippage_execucao(valor_brl: float, moeda: str = "usdt") -> float:
+    # slippage MEDIDO no order book real (Binance) DA MOEDA CERTA: (VWAP − mid) / mid.
+    # Achado #9 (auditoria 2026-07-30): USDC/BRL tem profundidade própria e menor que
+    # USDT/BRL no Brasil — usar sempre o book do USDT subestimava o slippage do USDC.
+    # Cai pro fallback heurístico (slippage_por_volume) se a API falhar ou o book não
+    # cobrir o volume. Despacho direto (não via dict de módulo) pra resolver a função
+    # em tempo de chamada — permite monkeypatch de `order_book_usdt_brl`/`_usdc_brl`.
+    book = order_book_usdt_brl() if moeda == "usdt" else order_book_usdc_brl()
+    return _slippage_do_book(book, valor_brl)
+
+
+# Achado #8 (auditoria 2026-07-30): acima deste limiar, a divergência entre a PTAX
+# (BCB, D-1) e o mid do order book (Binance, tempo real) provavelmente domina o número
+# do prêmio de on-ramp — não é possível "corrigir" sem FX intradiário oficial gratuito
+# (não existe); a correção honesta é EXPOR a defasagem, não escondê-la (ADR-0011 §6).
+LIMIAR_DEFASAGEM_PTAX_PERCENT = 1.0
+
+
+def _defasagem_pct(mid: float | None, ptax: float) -> float | None:
+    if mid is None or ptax <= 0:
+        return None
+    return (mid - ptax) / ptax * 100
 
 # Trilhos elegíveis por caso de uso (F2, ADR-0008): PIX é doméstico e não disputa
 # pagamento cross-border; Wire/USDT/USDC convertem BRL↔USD e não fazem sentido doméstico.
@@ -83,7 +110,12 @@ def comparar_custos(
     tipo_operacao: str = "remessa_internacional_terceiros",
     caso_uso: str = "cross_border",
     eletronico_cambio: bool = False,
+    spread_wire_percent: float = SPREAD_WIRE_PERCENT,
 ) -> pl.DataFrame:
+    # Achado #1 (auditoria 2026-07-30): SPREAD_WIRE_PERCENT era constante fixa (2,5%, spread
+    # de varejo/PME). Tesouraria corporativa negocia 0,2–0,8% em ticket grande — e a economia
+    # do stablecoin depende diretamente desse número, tanto quanto do IOF. Virou parâmetro
+    # (default preserva o comportamento anterior) em vez de premissa escondida.
     iof = aliquota_iof(tipo_operacao)
     ptax = ptax_venda() or PTAX_FALLBACK
     valor_usd = valor_brl / ptax
@@ -91,6 +123,18 @@ def comparar_custos(
     # prêmios de on-ramp derivados do preço real de mercado (ADR-0008)
     premio_usdt = premio_onramp(preco_stablecoin("usdt"), ptax, "usdt")
     premio_usdc = premio_onramp(preco_stablecoin("usdc"), ptax, "usdc")
+
+    # Achado #9 (auditoria 2026-07-30): book buscado 1x por MOEDA (não por trilho) —
+    # ERC-20 e Polygon da mesma stablecoin compartilham o mesmo book on/off-chain de USD↔BRL,
+    # então consultar 2x o mesmo book (ERC-20 e Polygon) era rede redundante.
+    book_usdt = order_book_usdt_brl()
+    book_usdc = order_book_usdc_brl()
+    slippage_usdt = _slippage_do_book(book_usdt, valor_brl)
+    slippage_usdc = _slippage_do_book(book_usdc, valor_brl)
+    # Achado #8: mesmo book já buscado acima — a defasagem PTAX×Binance é subproduto,
+    # não uma chamada de rede extra.
+    defasagem_usdt = _defasagem_pct(_mid_do_book(book_usdt), ptax)
+    defasagem_usdc = _defasagem_pct(_mid_do_book(book_usdc), ptax)
 
     gas_eth = gas_fee_eth()
     gas_poly = gas_fee_polygon()
@@ -101,11 +145,11 @@ def comparar_custos(
 
     construtores = {
         "PIX": lambda: _calcular_brl_pix(),
-        "Wire (SWIFT)": lambda: _calcular_brl_wire(valor_usd, iof, ptax),
-        "USDT (ERC-20)": lambda: _calcular_stablecoin("USDT (ERC-20)", "USDT → BRL", valor_brl, premio_usdt, gas_eth_usd, ptax),
-        "USDT (Polygon)": lambda: _calcular_stablecoin("USDT (Polygon)", "USDT → BRL", valor_brl, premio_usdt, gas_poly_usd, ptax),
-        "USDC (ERC-20)": lambda: _calcular_stablecoin("USDC (ERC-20)", "USDC → BRL", valor_brl, premio_usdc, gas_eth_usd, ptax),
-        "USDC (Polygon)": lambda: _calcular_stablecoin("USDC (Polygon)", "USDC → BRL", valor_brl, premio_usdc, gas_poly_usd, ptax),
+        "Wire (SWIFT)": lambda: _calcular_brl_wire(valor_usd, iof, ptax, spread_wire_percent),
+        "USDT (ERC-20)": lambda: _calcular_stablecoin("USDT (ERC-20)", "USDT → BRL", valor_brl, premio_usdt, slippage_usdt, gas_eth_usd, ptax, defasagem_usdt),
+        "USDT (Polygon)": lambda: _calcular_stablecoin("USDT (Polygon)", "USDT → BRL", valor_brl, premio_usdt, slippage_usdt, gas_poly_usd, ptax, defasagem_usdt),
+        "USDC (ERC-20)": lambda: _calcular_stablecoin("USDC (ERC-20)", "USDC → BRL", valor_brl, premio_usdc, slippage_usdc, gas_eth_usd, ptax, defasagem_usdc),
+        "USDC (Polygon)": lambda: _calcular_stablecoin("USDC (Polygon)", "USDC → BRL", valor_brl, premio_usdc, slippage_usdc, gas_poly_usd, ptax, defasagem_usdc),
     }
 
     elegiveis = _TRILHOS_DOMESTICO if caso_uso == "domestico" else _TRILHOS_CROSS_BORDER
@@ -125,8 +169,28 @@ def comparar_custos(
     ).sort("custo_total_brl")
 
 
-def _calcular_brl_wire(valor_usd: float, iof: float, ptax: float) -> dict:
-    spread = valor_usd * (SPREAD_WIRE_PERCENT / 100) * ptax
+def spread_indiferenca_wire(
+    valor_brl: float, tipo_operacao: str = "remessa_internacional_terceiros",
+) -> float:
+    # Achado #1 (auditoria 2026-07-30): em vez de vender "~90% de economia" como fato fixo,
+    # calcula o spread de Wire (%) em que a conclusão INVERTE — abaixo dele, Wire fica mais
+    # barato que o melhor trilho stablecoin. Isola o custo de Wire em spread=0 (só
+    # iof + tarifa fixa) e resolve algebricamente: custo_wire(spread%) é linear em spread%,
+    # custo do stablecoin não depende de spread_wire_percent.
+    # Resultado negativo = stablecoin vence mesmo com spread negociado de 0% (a folga do
+    # IOF já cobre tudo); positivo = existe um spread real acima do qual o stablecoin ganha.
+    df = comparar_custos(valor_brl, tipo_operacao, caso_uso="cross_border", spread_wire_percent=0.0)
+    ptax = ptax_venda() or PTAX_FALLBACK
+    valor_usd = valor_brl / ptax
+    wire_com_spread_zero = df.filter(pl.col("trilho") == "Wire (SWIFT)")["custo_total_brl"][0]
+    melhor_stablecoin = df.filter(pl.col("trilho") != "Wire (SWIFT)")["custo_total_brl"].min()
+    return (melhor_stablecoin - wire_com_spread_zero) / (valor_usd * ptax) * 100
+
+
+def _calcular_brl_wire(
+    valor_usd: float, iof: float, ptax: float, spread_wire_percent: float = SPREAD_WIRE_PERCENT,
+) -> dict:
+    spread = valor_usd * (spread_wire_percent / 100) * ptax
     iof_val = valor_usd * (iof / 100) * ptax
     tarifa = TARIFA_WIRE_FIXA_USD * ptax
     total = spread + iof_val + tarifa
@@ -138,6 +202,7 @@ def _calcular_brl_wire(valor_usd: float, iof: float, ptax: float) -> dict:
         "iof_brl": round(iof_val, 2),
         "gas_brl": 0.0,
         "custo_total_brl": round(total, 2),
+        "defasagem_ptax_binance_pct": None,  # não se aplica a trilho não-cripto
     }
 
 
@@ -150,16 +215,20 @@ def _calcular_brl_pix() -> dict:
         "iof_brl": 0.0,
         "gas_brl": 0.0,
         "custo_total_brl": 0.0,
+        "defasagem_ptax_binance_pct": None,
     }
 
 
 def _calcular_stablecoin(
     trilho: str, moeda: str, valor_brl: float, premio_onramp_frac: float,
-    gas_usd: float, ptax: float,
+    slippage_frac: float, gas_usd: float, ptax: float,
+    defasagem_ptax_binance_pct: float | None = None,
 ) -> dict:
     # custo real do trilho stablecoin (ADR-0008, F1): conversão de entrada + gas + saída.
-    # On-ramp = prêmio spot (dado real) + slippage MEDIDO no order book (ADR-0011, VWAP real).
-    spread_onramp = valor_brl * (premio_onramp_frac + slippage_execucao(valor_brl))
+    # On-ramp = prêmio spot (dado real) + slippage MEDIDO no order book (ADR-0011, VWAP real),
+    # pré-calculado 1x por moeda em comparar_custos (achado #9, evita rede redundante e
+    # book errado entre ERC-20/Polygon da mesma stablecoin).
+    spread_onramp = valor_brl * (premio_onramp_frac + slippage_frac)
     spread_offramp = valor_brl * (SPREAD_OFFRAMP_PERCENT / 100)
     spread_conversao = spread_onramp + spread_offramp
     gas_brl = gas_usd * ptax
@@ -172,6 +241,13 @@ def _calcular_stablecoin(
         "iof_brl": 0.0,  # stablecoin dribla o IOF de eFX — a arbitragem que a BCB 561 fecha
         "gas_brl": round(gas_brl, 2),
         "custo_total_brl": round(total, 2),
+        # Achado #8: divergência PTAX (D-1) × Binance mid (tempo real), em %. Acima de
+        # LIMIAR_DEFASAGEM_PTAX_PERCENT, o prêmio de on-ramp acima provavelmente reflete
+        # câmbio se movendo intradia, não custo real de liquidez do trilho — disclaimer,
+        # não correção (não existe FX oficial intradiário gratuito).
+        "defasagem_ptax_binance_pct": (
+            round(defasagem_ptax_binance_pct, 4) if defasagem_ptax_binance_pct is not None else None
+        ),
     }
 
 

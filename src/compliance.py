@@ -20,23 +20,30 @@ def validar_transacao(transacao: dict) -> dict:
     erros = []
     avisos = []
     permitido = True
+    # Achado menor (auditoria 2026-07-30): antes retornava sempre as mesmas 3 resoluções,
+    # independente da transação avaliada. Agora só entra aqui a resolução que REALMENTE
+    # disparou (erro ou aviso) nesta transação — reflete o que foi de fato avaliado.
+    resolucoes_aplicadas = []
 
     if trilho in ("USDT", "USDC") and tipo == "eletronico_cambio":
         erros.append("BCB 561: ativo virtual proibido como trilho de liquidação em eFX (Res. 561, vigência: 1º out/2026)")
         permitido = False
+        resolucoes_aplicadas.append("BCB 561")
 
     if moeda_saida in MOEDAS_STABLECOIN and not kyc_completo:
         avisos.append("BCB 520: KYC obrigatório para transações com ativos virtuais")
+        resolucoes_aplicadas.append("BCB 520")
 
     if valor_brl > 500000:
         avisos.append(f"Valor acima de R$500k ({valor_brl:,.0f}): declarar ao BCB via e-DRS (Res. 521)")
+        resolucoes_aplicadas.append("BCB 521")
 
     return {
         "transacao_id": transacao.get("id", "unknown"),
         "permitido": permitido,
         "erros": erros,
         "avisos": avisos,
-        "resolucoes_aplicadas": ["BCB 561", "BCB 520", "BCB 521"],
+        "resolucoes_aplicadas": resolucoes_aplicadas,
     }
 
 
