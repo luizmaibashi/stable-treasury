@@ -10,8 +10,8 @@
 | 4 | BCB 561 implementada sem interpretação jurídica | Específico | — domínio regulatório específico deste projeto |
 | 5 | Liquidity Optimizer heurística fixa | RESOLVIDO | — sem débito remanescente |
 | 7 | Depeg Risk Engine media só USDC | RESOLVIDO | — sem débito remanescente |
-| 9 | `var_es_historico` clampa `confianca` fora de `[0,1]` sem validar/logar | Estrutural (já coberto) | Padrão "guarda silenciosa" — checklist de revisão do agente `pr-review-toolkit:silent-failure-hunter`. Sem gate novo em `dados.md` |
-| 10 | `_utc_naive`/`_com_utc` assume UTC implícito sem validar | Estrutural (já coberto) | Mesma classe do #9 — `silent-failure-hunter` |
+| 9 | `var_es_historico` clampa `confianca` fora de `[0,1]` sem validar/logar | Estrutural (gate novo) | **Corrigido em revisão (2026-08-22)**: classificação original ("já coberto por `silent-failure-hunter`") errava a Lei da Travessia contra si mesma — esse agente só roda sob invocação explícita de PR review, não é gate automático. Virou checklist manual novo em `AGENTS.md` § Regras de engenharia ("Software — guarda silenciosa") |
+| 10 | `_utc_naive`/`_com_utc` assume UTC implícito sem validar | Estrutural (gate novo) | Mesmo gate novo do #9 — padrão repetido 2× no mesmo projeto |
 | 11 | Heurística de slippage sem order book real | Específico | — aproximação de domínio documentada |
 | 12 | Custo trilho stablecoin ignorava on/off-ramp | RESOLVIDO | — sem débito remanescente |
 | 14 | Off-ramp stablecoin (0,3%) constante estimada, não medida | Específico | — mesmo padrão do #1 |
@@ -29,6 +29,6 @@
 
 ## Achado da rodada
 
-**Zero débitos estruturais genuinamente novos.** 4 candidatos (#9, #10, #23, #25) pareciam estruturais à primeira leitura, mas todos são instâncias de proteção que **já existe** na base — 2 gates de `dados.md` (n+IC, comparação mesma população/grão) e 1 agente de revisão (`silent-failure-hunter`). Isso é achado em si: os gates atuais generalizam melhor do que o esperado além de ML puro — nunca tinham sido testados contra um projeto financeiro não-ML antes desta mineração.
+**2 débitos (#23, #25) confirmaram cobertura já existente** — instâncias válidas dos gates ML "n+IC" e "comparação mesma população/grão" de `dados.md`. Isso é achado em si: os gates atuais generalizam melhor do que o esperado além de ML puro.
 
-**Sem gate novo, sem edição de skill nesta rodada.** Diferente do payflow (que originou os gates ML), o stable-treasury não trouxe padrão de falha inédito — só confirmou cobertura existente.
+**2 débitos (#9, #10) geraram gate novo, após autocorreção.** Classificação original ("já coberto por `silent-failure-hunter`") foi revisada: esse agente só roda sob invocação explícita de review de PR, não é sinal automático — chamar isso de "coberto" repetia a própria Lei da Travessia que a skill existe pra caçar (capacidade existir ≠ ela atravessar pra proteção que dispara sozinha). Virou 1 checklist manual novo em `AGENTS.md` § Regras de engenharia: "Software — guarda silenciosa" (parâmetro sem contrato de validade, clampado/assumido sem log). Padrão repetido 2× no mesmo projeto — a validar se aparece de novo na rodada do payflow.
