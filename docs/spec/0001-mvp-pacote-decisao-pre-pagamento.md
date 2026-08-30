@@ -64,7 +64,7 @@ O cálculo usa exclusivamente os valores declarados pelo usuário. Não aplica s
 
 ### Dados vencidos
 
-Cotação com mais de 24 horas é exibida, mas força `REVISAR`. O limite deve ser apresentado como política configurável em implementação futura; no MVP é constante visível e testada.
+Cotação com mais horas que a validade máxima declarada na política é exibida, mas força `REVISAR`. O limite é configurável por decisão e visível na tela.
 
 ## 5. Critérios de aceitação
 

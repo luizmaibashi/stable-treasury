@@ -22,6 +22,8 @@ O StableTreasury organiza uma decisão repetível:
 
 O teste de valor é objetivo: diante de duas cotações, o dossiê deve explicar em menos tempo a escolha, preservar a origem das premissas e tornar visíveis exceções que uma planilha bem feita pode deixar implícitas.
 
+O [kill gate contra uma planilha bem feita](docs/validation/0001-kill-gate-contra-planilha.md) separa o que já foi provado tecnicamente do que ainda exige uso por um tesoureiro real.
+
 ## Para quem — e para quem não é
 
 O foco inicial é o importador B2B industrial médio. Não é um TMS/ERP, mesa de câmbio, banco, corretora, custodiante ou sistema de execução. Integrações, login, multiempresa, geração de cotações, hedge e IA generativa estão explicitamente fora do MVP. A definição verificável está em [`docs/spec/0001-mvp-pacote-decisao-pre-pagamento.md`](docs/spec/0001-mvp-pacote-decisao-pre-pagamento.md).
