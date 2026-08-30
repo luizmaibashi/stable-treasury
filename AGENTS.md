@@ -56,6 +56,7 @@
 | **Dev/prod parity** | Mesmo motor de banco (Postgres) local e em produção, evitando surpresa de dialeto |
 | **Neon** | Provedor de Postgres gerenciado (nuvem), free tier — usado em produção pra manter dev/prod parity do ADR-0005 sem custo |
 | **Cold start (Neon)** | Free tier pausa o banco após inatividade; primeira consulta depois da pausa demora alguns segundos a mais pra "acordar" |
+| **Atualização sob demanda** | Na abertura do dashboard, atualiza somente o delta de preço vencido há mais de 24 h; não é cron e não executa backfill automático (ADR-0015) |
 | **DATABASE_URL** | Variável de ambiente que aponta pro banco (Docker local em dev, Neon em prod) — trocar só ela muda o ambiente, código não muda |
 | **Opportunity Cost** | Rendimento que o caixa alocado em stablecoin deixa de ganhar por ficar parado; card do dashboard compara % alocado pelo Optimizer vs. yield de protocolo de referência (ADR-0007) |
 | **Yield (APY)** | Taxa de rendimento anual de um protocolo DeFi (ex: Aave), consultada via DefiLlama `/yields` — só leitura de dado público, sem execução/depósito real |
@@ -105,6 +106,7 @@
 | 0012 | Auditoria 2026-07-30: hedge por exposição líquida (não só sinal de recebimento), fallback do ES coerente (teto×haircut), slippage/defasagem por moeda certa, spread do Wire parametrizável + fronteira de indiferença, ES horário medido na janela SVB (4,18%, margem 0,82pp), piso de ES estressado no haircut de liquidez, ressalva de paridade de juros no custo de carrego, TTL nos caches de taxa | Accepted |
 | 0013 | Reposiciona o produto para pacote de decisão pré-pagamento; execução financeira, cotação e parecer jurídico ficam fora do escopo | Accepted |
 | 0014 | Dashboard modular para portfólio: Depeg Risk Engine primeiro; renderização isolada em `src/views/` | Accepted |
+| 0015 | Demo pública atualiza histórico sob demanda, com TTL de 24 h e lock no Postgres | Accepted |
 
 ---
 

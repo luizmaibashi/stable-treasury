@@ -1,6 +1,6 @@
 import streamlit as st
 
-from src.repositorio import ler_serie_risco
+from src.repositorio import ler_serie_risco, ultima_data_preco
 from src.ui import intro
 
 
@@ -21,6 +21,7 @@ def renderizar(engine):
 
     try:
         serie = ler_serie_risco(engine, ativo)
+        ultimo_preco = ultima_data_preco(engine, ativo)
     except Exception as e:
         serie = []
         st.warning(f"Banco indisponível ({e}). Rode `docker compose up -d` e a ingestão histórica.")
@@ -46,6 +47,8 @@ def renderizar(engine):
             f"Pico de risco em **{pico['ts'].date()}** (ES {pico['es']:.2%}) — para USDC, "
             "coincide com a janela do colapso do SVB (mar/2023), detectado pelo modelo sem ajuste manual."
         )
+        if ultimo_preco is not None:
+            st.caption(f"Último preço persistido: **{ultimo_preco.date().isoformat()} UTC**.")
         from src.depeg_risk import tamanho_cauda
         st.caption(
             "ℹ️ Granularidade (ADR-0011): o **risco atual** (aba Liquidez) usa série **horária** "

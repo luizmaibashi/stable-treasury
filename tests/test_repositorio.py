@@ -6,14 +6,14 @@ from sqlalchemy.pool import StaticPool
 try:
     from src.db import init_schema
     from src.repositorio import (
-        salvar_precos, ler_serie_precos, salvar_risk_snapshot, ler_serie_risco,
+        salvar_precos, ler_serie_precos, salvar_risk_snapshot, ler_serie_risco, ultima_data_preco,
     )
 except ImportError:
     import sys
     sys.path.insert(0, ".")
     from src.db import init_schema
     from src.repositorio import (
-        salvar_precos, ler_serie_precos, salvar_risk_snapshot, ler_serie_risco,
+        salvar_precos, ler_serie_precos, salvar_risk_snapshot, ler_serie_risco, ultima_data_preco,
     )
 
 
@@ -84,3 +84,10 @@ def test_salvar_e_ler_risco():
     assert len(serie) == 1
     assert serie[0]["faixa"] == "baixo"
     assert abs(serie[0]["es"] - 0.0176) < 1e-9
+
+
+def test_ultima_data_preco_retorna_watermark_ou_none():
+    eng = _engine_teste()
+    assert ultima_data_preco(eng, "usd-coin") is None
+    salvar_precos(eng, "usd-coin", [(_dt(11), 0.99), (_dt(12), 1.00)])
+    assert ultima_data_preco(eng, "usd-coin") == _dt(12)

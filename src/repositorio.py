@@ -61,6 +61,18 @@ def ler_serie_precos(engine, coingecko_id: str) -> list[tuple[datetime, float]]:
     return [(_com_utc(ts), float(price)) for ts, price in linhas]
 
 
+def ultima_data_preco(engine, coingecko_id: str) -> datetime | None:
+    """Retorna o watermark UTC do ativo; `None` exige seed explícito, nunca backfill oculto."""
+    with engine.connect() as conn:
+        ts = conn.execute(
+            select(peg_prices.c.ts)
+            .where(peg_prices.c.coingecko_id == coingecko_id)
+            .order_by(peg_prices.c.ts.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+    return _com_utc(ts) if ts is not None else None
+
+
 def salvar_risk_snapshot(
     engine, coingecko_id: str, ts: datetime,
     es: float, var: float, faixa: str, teto: float,

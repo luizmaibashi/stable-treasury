@@ -4,6 +4,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from src.db import get_engine
+from src.atualizacao import atualizar_historico_do_banco
 from src.ui import aplicar_estilo, hero
 from src.views import (
     comparador,
@@ -32,6 +33,18 @@ st.set_page_config(page_title="StableTreasury", page_icon="🏦", layout="wide")
 
 aplicar_estilo()
 hero()
+
+try:
+    resultado_atualizacao = atualizar_historico_do_banco(_engine())
+    if resultado_atualizacao.atualizados:
+        ativos = ", ".join(ativo.upper() for ativo in resultado_atualizacao.atualizados)
+        st.caption(f"Histórico atualizado sob demanda: {ativos}.")
+    if resultado_atualizacao.falhas:
+        st.warning("Não foi possível atualizar a fonte agora; exibindo o último histórico válido.")
+except ValueError as erro:
+    st.warning(f"Histórico ainda não inicializado: {erro}")
+except Exception:
+    st.warning("Atualização automática indisponível; exibindo o último histórico válido.")
 
 tab_risco, tab_liquidez, tab_rails, tab_compliance, tab_decisao, tab_config = st.tabs([
     "📈 Risco de Depeg",

@@ -31,8 +31,9 @@ risk_snapshots = Table(
 
 def get_engine(url: str | None = None):
     # precedência: argumento explícito > env DATABASE_URL > Postgres local do container.
+    # pre_ping troca conexões fechadas pelo Neon antes da query, após cold start/reboot.
     resolved = url or os.environ.get("DATABASE_URL") or _default_local_url()
-    return create_engine(resolved, future=True)
+    return create_engine(resolved, future=True, pool_pre_ping=True)
 
 
 def _default_local_url() -> str:
