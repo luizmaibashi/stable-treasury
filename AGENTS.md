@@ -1,7 +1,9 @@
 # AGENTS.md — StableTreasury
 
-> **Projeto**: Motor de decisão para fintechs compararem trilhos de pagamento B2B.
+> **Projeto**: Portfólio/laboratório de tesouraria e risco; inclui demonstração de decisão pré-pagamento determinística.
 > **Stack**: Python · Streamlit · CoinGecko API · Etherscan API · BCB SGS
+
+> **Status do posicionamento comercial (2026-08-30):** encerrado pelo gate documental `docs/validation/0003-varredura-documental-mercado-e-concorrencia.md`. O dossiê pré-pagamento é artefato técnico, não produto validado; não adicionar integrações, IA, execução ou alegações comerciais sob essa hipótese.
 
 ---
 
@@ -102,6 +104,7 @@
 | 0011 | Rigor upgrade pós-aula: premissas viram medições onde há dado de mercado gratuito (IOF isento p/ importação de bens, granularidade horária, order book real via Binance, ES ponderado por carteira, âncora trocada p/ Azul); mantém normativo explícito (cap de política) onde fingir medição seria número mágico | Accepted |
 | 0012 | Auditoria 2026-07-30: hedge por exposição líquida (não só sinal de recebimento), fallback do ES coerente (teto×haircut), slippage/defasagem por moeda certa, spread do Wire parametrizável + fronteira de indiferença, ES horário medido na janela SVB (4,18%, margem 0,82pp), piso de ES estressado no haircut de liquidez, ressalva de paridade de juros no custo de carrego, TTL nos caches de taxa | Accepted |
 | 0013 | Reposiciona o produto para pacote de decisão pré-pagamento; execução financeira, cotação e parecer jurídico ficam fora do escopo | Accepted |
+| 0014 | Dashboard modular para portfólio: Depeg Risk Engine primeiro; renderização isolada em `src/views/` | Accepted |
 
 ---
 

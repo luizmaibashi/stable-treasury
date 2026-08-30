@@ -1,18 +1,18 @@
 # 🏦 StableTreasury
 
-**Produto de decisão pré-pagamento para tesourarias de importadores: transforma uma fatura e cotações recebidas em evidência rastreável para aprovação humana.**
+**Projeto de portfólio: demonstração de um motor determinístico e fail-safe que organiza cotações declaradas em um dossiê pré-pagamento.**
 
 ### 🔗 [Ver o dashboard ao vivo](https://stable-treasury-khrmolkmu738evtrxd9aqv.streamlit.app/)
 
-> O primeiro MVP não executa pagamentos, não custodia ativos, não gera cotações e não dá parecer jurídico. Ele compara propostas que a empresa já recebeu, calcula custo total, prazo, impacto no caixa e exposição cambial declarada; também aponta exceções de política. A decisão e a execução continuam humanas e fora da plataforma.
+> O motor não executa pagamentos, não custodia ativos, não gera cotações e não dá parecer jurídico. Ele compara propostas declaradas, calcula custo total, prazo, impacto no caixa e exposição cambial, e aponta exceções de política. A decisão e a execução continuam humanas e fora da plataforma.
 
 ---
 
-## O problema que o MVP resolve
+## O que a demonstração exercita
 
-O responsável financeiro de um importador B2B industrial de porte médio, com **4 a 20 pagamentos internacionais por mês** e faturas típicas entre **R$ 100 mil e R$ 2 milhões**, ainda consolida fatura, e-mails de parceiros, planilhas de caixa e políticas internas sob pressão de prazo. Quando a decisão é questionada, a evidência está espalhada.
+O cenário sintético modela uma fatura internacional com duas cotações declaradas. Ele existe para demonstrar decisões de engenharia: cálculo reproduzível, proveniência temporal explícita e falha segura quando dados ou política não permitem uma recomendação condicionada.
 
-O StableTreasury organiza uma decisão repetível:
+O StableTreasury demonstra um fluxo repetível:
 
 1. Registra a fatura, vencimento, moeda e fluxo previsto.
 2. Compara ao menos duas cotações declaradas, com fonte e horário.
@@ -20,13 +20,13 @@ O StableTreasury organiza uma decisão repetível:
 4. Bloqueia recomendação quando há dado ausente, cotação vencida/futura, caixa insuficiente ou exceção de política.
 5. Produz uma recomendação apenas quando o caso está pronto para **aprovação humana**.
 
-O teste de valor é objetivo: diante de duas cotações, o dossiê deve explicar em menos tempo a escolha, preservar a origem das premissas e tornar visíveis exceções que uma planilha bem feita pode deixar implícitas.
+O [gate técnico](docs/validation/0001-kill-gate-contra-planilha.md) foi aprovado: o dossiê é reproduzível e seguro nos cenários declarados.
 
-O [kill gate contra uma planilha bem feita](docs/validation/0001-kill-gate-contra-planilha.md) separa o que já foi provado tecnicamente do que ainda exige uso por um tesoureiro real.
+O [gate documental de mercado](docs/validation/0003-varredura-documental-mercado-e-concorrencia.md) **falhou**: a pesquisa não comprovou uma lacuna de produto frente a planilhas, portais bancários, correspondentes e TMS. Por isso esta página não faz alegação de produto, adoção ou product-market fit.
 
-## Para quem — e para quem não é
+## Limites do cenário
 
-O foco inicial é o importador B2B industrial médio. Não é um TMS/ERP, mesa de câmbio, banco, corretora, custodiante ou sistema de execução. Integrações, login, multiempresa, geração de cotações, hedge e IA generativa estão explicitamente fora do MVP. A definição verificável está em [`docs/spec/0001-mvp-pacote-decisao-pre-pagamento.md`](docs/spec/0001-mvp-pacote-decisao-pre-pagamento.md).
+O caso de uso simula um importador B2B industrial médio; não representa um ICP validado. Não é TMS/ERP, mesa de câmbio, banco, corretora, custodiante ou sistema de execução. Integrações, login, multiempresa, geração de cotações, hedge e IA generativa permanecem fora do escopo. A definição técnica está em [`docs/spec/0001-mvp-pacote-decisao-pre-pagamento.md`](docs/spec/0001-mvp-pacote-decisao-pre-pagamento.md).
 
 ---
 

@@ -129,18 +129,17 @@ def hero() -> None:
     st.markdown(
         f"""
         <div class="hero">
-          <div class="eyebrow">Painel de tesouraria · pagamentos cross-border</div>
-          <h1>Transforme cotações em uma <span class="em">decisão que se sustenta</span>.</h1>
-          <p class="lede">Antes de pagar um fornecedor no exterior, a tesouraria precisa comparar
-          propostas recebidas, caixa, prazo e exposição cambial — e deixar claro <b>quem informou o quê</b>.
-          O StableTreasury organiza essa evidência para aprovação humana; ele <b>não movimenta recursos</b>
-          nem substitui banco, corretora ou ERP.</p>
-          <div class="chip">Decisão assistida · execução fora da plataforma</div>
+          <div class="eyebrow">Laboratório de tesouraria quantitativa</div>
+          <h1>Meça o <span class="em">risco de depeg</span> antes de discutir o trilho.</h1>
+          <p class="lede">O StableTreasury reconstrói VaR e Expected Shortfall sobre séries históricas
+          de stablecoins e expõe limites, premissas e falhas de modelo. É uma demonstração de engenharia:
+          <b>não executa pagamentos</b>, não gera cotações e não substitui banco, corretora ou ERP.</p>
+          <div class="chip">Portfólio técnico · risco mensurável · limites explícitos</div>
           <div class="steps">
-            <div class="step"><div class="k">01 · FATURA</div><div class="t">O que precisa ser pago?</div><div class="d">Registre fornecedor, valor, vencimento e natureza declarada da operação.</div></div>
-            <div class="step"><div class="k">02 · COTAÇÕES</div><div class="t">Quais alternativas existem?</div><div class="d">Anexe pelo menos duas propostas de parceiros autorizados, com origem e horário.</div></div>
-            <div class="step"><div class="k">03 · EVIDÊNCIA</div><div class="t">O que muda em custo e caixa?</div><div class="d">Compare custo total, prazo, impacto no caixa e exposição cambial declarada.</div></div>
-            <div class="step"><div class="k">04 · APROVAÇÃO</div><div class="t">O que exige revisão?</div><div class="d">Sinalize exceções de política; o aprovador humano executa fora da plataforma.</div></div>
+            <div class="step"><div class="k">01 · SÉRIE HISTÓRICA</div><div class="t">O que aconteceu com o peg?</div><div class="d">O banco guarda preços e snapshots de risco de USDC e USDT.</div></div>
+            <div class="step"><div class="k">02 · RISCO DE CAUDA</div><div class="t">Quanto se perde no pior cenário?</div><div class="d">VaR e Expected Shortfall tornam a cauda observável e reproduzível.</div></div>
+            <div class="step"><div class="k">03 · GUARDRAILS</div><div class="t">O que não pode ficar verde?</div><div class="d">Alertas, haircuts e limites tornam as suposições revisáveis.</div></div>
+            <div class="step"><div class="k">04 · LABORATÓRIOS</div><div class="t">Como o risco afeta decisões?</div><div class="d">Liquidez, trilhos, compliance e dossiê são cenários técnicos, não produto.</div></div>
           </div>
         </div>
         """,

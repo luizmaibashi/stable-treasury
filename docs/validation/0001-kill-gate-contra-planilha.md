@@ -42,7 +42,17 @@ O MVP passa no **gate técnico** se, nos três cenários:
 
 O MVP só passa no **gate de mercado** após um tesoureiro comparar o mesmo caso com sua planilha. Métricas: tempo até decisão, número de perguntas de revisão, exceções encontradas e intenção de reutilizar. Se o artefato não superar a planilha em pelo menos clareza/rastreabilidade de exceções, a direção deve ser interrompida.
 
+O procedimento enxuto, os critérios de recrutamento e a regra de parada estão em
+[`0002-protocolo-gate-de-mercado.md`](0002-protocolo-gate-de-mercado.md). A
+primeira entrevista é apenas um sinal de descoberta; evidência inicial de mercado
+exige três participantes válidos e independentes.
+
+Enquanto entrevistas não forem parte da estratégia, a
+[`0003-varredura-documental-mercado-e-concorrencia.md`](0003-varredura-documental-mercado-e-concorrencia.md)
+é o gate secundário: ela pode sustentar ou matar a plausibilidade da tese, mas não
+substitui evidência de uso nem autoriza declarar que o dossiê supera uma planilha.
+
 ## Resultado atual
 
 **Gate técnico: aprovado.** A suíte integral aprovou 107 testes e o fluxo da tela foi exercitado com o cenário A.
-**Gate de mercado: pendente por ausência deliberada de usuário real.** Não transformar esse pendente em integração ou escopo adicional.
+**Gate de mercado: não aprovado.** Sem entrevistas, o gate documental 0003 falhou em comprovar uma lacuna vendável. O MVP fica preservado como demonstração técnica; não transformar esse resultado em integração ou escopo adicional.

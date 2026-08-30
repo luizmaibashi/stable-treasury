@@ -1,21 +1,23 @@
 # Spec 0001 — MVP: Pacote de Decisão Pré-Pagamento
 
-**Status:** Aceita e implementada como MVP demonstrável  
+**Status:** Implementada como demonstração técnica; hipótese de produto encerrada pelo gate documental 0003
 **Data:** 2026-08-29  
 **Dono da decisão e aprovação:** Luiz Maibashi  
 **ADR:** `docs/adr/0013-reposicionamento-para-decisao-pre-pagamento.md`
 
 **Evidência de implementação (2026-08-29):** `src/decisao_pre_pagamento.py`, aba “Decisão pré-pagamento” em `app.py`, 13 testes específicos e suíte integral com 107 testes aprovados. O PAVC está em [`docs/audit/2026-08-29-pavc-mvp-decisao-pre-pagamento.md`](../audit/2026-08-29-pavc-mvp-decisao-pre-pagamento.md).
 
-## 1. Objetivo
+> **Nota de posicionamento (2026-08-30):** esta spec continua sendo a fonte de verdade do comportamento implementado, não uma promessa comercial. A pesquisa documental não comprovou uma lacuna vendável frente a planilhas, portais, correspondentes e TMS; ver [`0003-varredura-documental-mercado-e-concorrencia.md`](../validation/0003-varredura-documental-mercado-e-concorrencia.md).
 
-Permitir que o gerente financeiro de um importador industrial brasileiro de porte médio compare duas ou mais cotações recebidas para uma fatura internacional e gere, em até cinco minutos, uma decisão rastreável de pagamento.
+## 1. Objetivo técnico
+
+Demonstrar como uma fatura internacional e duas ou mais cotações declaradas podem gerar, em até cinco minutos, um artefato rastreável de decisão condicionada.
 
 O valor não é executar câmbio: é tornar explícitos custo total, prazo, efeito sobre caixa, exposição e violação de política antes de a empresa instruir seu banco, corretora ou parceiro autorizado.
 
-## 2. Usuário e evento de uso
+## 2. Cenário simulado
 
-**Usuário inicial:** gerente financeiro de importador B2B/industrial, com 4–20 pagamentos internacionais por mês e faturas típicas entre R$100 mil e R$2 milhões.
+**Usuário modelado:** gerente financeiro de importador B2B/industrial, com 4–20 pagamentos internacionais por mês e faturas típicas entre R$100 mil e R$2 milhões. Não é ICP validado.
 
 **Evento:** uma fatura de fornecedor em USD chega com vencimento próximo; o usuário possui ao menos duas cotações de parceiros autorizados e precisa justificar qual rota será aprovada.
 
