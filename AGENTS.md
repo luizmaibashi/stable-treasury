@@ -8,6 +8,7 @@
 ## Mapa do projeto
 
 - `src/comparador.py` — Módulo 1: Rail Comparator (custo de cada trilho)
+- `src/decisao_pre_pagamento.py` — MVP: compara cotações declaradas e gera dossiê determinístico; não consulta mercado nem executa pagamentos
 - `src/compliance.py` — Módulo 2: Compliance Filter (BCB 519-521-561)
 - `src/otimizador.py` — Módulo 3: Liquidity Optimizer (alocação de caixa)
 - `src/iof_tabela.py` — Tabela de alíquotas IOF vigentes
@@ -18,7 +19,7 @@
 - `src/db.py` — Schema SQLAlchemy (fonte única): tabelas `peg_prices` e `risk_snapshots`
 - `src/repositorio.py` — Camada de persistência agnóstica de dialeto (SQLite/Postgres)
 - `src/ingestao.py` — Backfill histórico paginado + geração de snapshots de risco (backtest)
-- `app.py` — Dashboard Streamlit (5 tabs, incl. Histórico de Risco)
+- `app.py` — Dashboard Streamlit (dossiê pré-pagamento + abas analíticas)
 - `docker-compose.yml` — Postgres 16 local para desenvolvimento
 - `data/raw/iof_aliquotas.yaml` — Alíquotas IOF por tipo de operação
 - `docs/adr/` — Architecture Decision Records
@@ -46,6 +47,9 @@
 | **Attestation** | Relatório público (Circle/Tether) que declara composição das reservas que lastreiam a stablecoin |
 | **Backfill** | Carga inicial de histórico no banco (2022→hoje) via ingestão paginada |
 | **Risk Snapshot** | Registro de risco (ES/VaR/faixa/teto) calculado num momento; série alimenta o gráfico histórico |
+| **Decisão pré-pagamento** | Escolha humana de como liquidar uma fatura internacional, antes de instruir qualquer parceiro financeiro |
+| **Pacote de decisão** | Artefato rastreável com fatura, cotações, premissas, cálculo, alertas e recomendação condicionada; não executa nem aprova o pagamento |
+| **Cotação anexada** | Preço e prazo recebidos de parceiro autorizado, com fonte e horário declarados; insumo do cálculo, não cotação gerada pelo StableTreasury |
 | **Backtest** | Reconstrução do risco ao longo do tempo (ES rolante) sobre preço histórico real |
 | **Dev/prod parity** | Mesmo motor de banco (Postgres) local e em produção, evitando surpresa de dialeto |
 | **Neon** | Provedor de Postgres gerenciado (nuvem), free tier — usado em produção pra manter dev/prod parity do ADR-0005 sem custo |
@@ -97,6 +101,7 @@
 | 0010 | 3º pilar reenquadrado: custo de carrego da **reserva de cash** (BRL vs CDI, USD vs T-bill), não yield de stablecoin (premissa morta pelo 0009). Implementa também o slippage por volume (ponto C do 0007) | Accepted |
 | 0011 | Rigor upgrade pós-aula: premissas viram medições onde há dado de mercado gratuito (IOF isento p/ importação de bens, granularidade horária, order book real via Binance, ES ponderado por carteira, âncora trocada p/ Azul); mantém normativo explícito (cap de política) onde fingir medição seria número mágico | Accepted |
 | 0012 | Auditoria 2026-07-30: hedge por exposição líquida (não só sinal de recebimento), fallback do ES coerente (teto×haircut), slippage/defasagem por moeda certa, spread do Wire parametrizável + fronteira de indiferença, ES horário medido na janela SVB (4,18%, margem 0,82pp), piso de ES estressado no haircut de liquidez, ressalva de paridade de juros no custo de carrego, TTL nos caches de taxa | Accepted |
+| 0013 | Reposiciona o produto para pacote de decisão pré-pagamento; execução financeira, cotação e parecer jurídico ficam fora do escopo | Accepted |
 
 ---
 

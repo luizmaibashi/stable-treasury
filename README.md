@@ -1,30 +1,40 @@
 # 🏦 StableTreasury
 
-**Motor de decisão de tesouraria cross-border: mede a arbitragem do trilho stablecoin, o risco de depeg de usá-la e o custo de não usar o caixa — com rigor de mesa, não de tutorial.**
+**Produto de decisão pré-pagamento para tesourarias de importadores: transforma uma fatura e cotações recebidas em evidência rastreável para aprovação humana.**
 
 ### 🔗 [Ver o dashboard ao vivo](https://stable-treasury-khrmolkmu738evtrxd9aqv.streamlit.app/)
 
-> Existe uma janela de arbitragem de **~90%** em pagamentos cross-border via stablecoin — e parte dela tem **data de expiração regulatória** (Resolução BCB 561, vigência 1º/out/2026, que proíbe stablecoin como liquidação em operações formais de **eFX**). Este projeto mede os três lados dessa decisão ao mesmo tempo: **quanto se economiza**, **quanto risco se corre**, e **quanto custa o caixa parado** — e o Compliance Filter já bloqueia corretamente a operação restrita, meses antes da regra valer.
->
-> A 561 é escopada a eFX — a arbitragem **persiste** fora desse regime formal, e o Depeg Risk Engine (o motor central) não tem prazo de validade nenhum. Validação completa em [`docs/val-loop/bcb561-prazo/`](docs/val-loop/bcb561-prazo/).
+> O primeiro MVP não executa pagamentos, não custodia ativos, não gera cotações e não dá parecer jurídico. Ele compara propostas que a empresa já recebeu, calcula custo total, prazo, impacto no caixa e exposição cambial declarada; também aponta exceções de política. A decisão e a execução continuam humanas e fora da plataforma.
 
 ---
 
-## O problema
+## O problema que o MVP resolve
 
-Uma tesouraria que paga no exterior — fintech, companhia aérea (leasing/combustível em USD), importador — precisa responder, todo dia:
+O responsável financeiro de um importador B2B industrial de porte médio, com **4 a 20 pagamentos internacionais por mês** e faturas típicas entre **R$ 100 mil e R$ 2 milhões**, ainda consolida fatura, e-mails de parceiros, planilhas de caixa e políticas internas sob pressão de prazo. Quando a decisão é questionada, a evidência está espalhada.
 
-1. **Qual trilho custa menos?** (PIX, Wire/SWIFT, USDT, USDC)
-2. **Isso é legal?** (Resoluções BCB 519/520/521/561)
-3. **Posso confiar na stablecoin agora?** (risco de depeg)
-4. **Como alocar o caixa?** (reserva, hedge, giro)
-5. **O caixa parado está me custando quanto?** (custo de oportunidade)
+O StableTreasury organiza uma decisão repetível:
 
-Não existe ferramenta que junte as cinco. StableTreasury junta.
+1. Registra a fatura, vencimento, moeda e fluxo previsto.
+2. Compara ao menos duas cotações declaradas, com fonte e horário.
+3. Mostra o menor custo total, prazo, caixa após pagamento e exposição líquida em USD.
+4. Bloqueia recomendação quando há dado ausente, cotação vencida/futura, caixa insuficiente ou exceção de política.
+5. Produz uma recomendação apenas quando o caso está pronto para **aprovação humana**.
+
+O teste de valor é objetivo: diante de duas cotações, o dossiê deve explicar em menos tempo a escolha, preservar a origem das premissas e tornar visíveis exceções que uma planilha bem feita pode deixar implícitas.
+
+## Para quem — e para quem não é
+
+O foco inicial é o importador B2B industrial médio. Não é um TMS/ERP, mesa de câmbio, banco, corretora, custodiante ou sistema de execução. Integrações, login, multiempresa, geração de cotações, hedge e IA generativa estão explicitamente fora do MVP. A definição verificável está em [`docs/spec/0001-mvp-pacote-decisao-pre-pagamento.md`](docs/spec/0001-mvp-pacote-decisao-pre-pagamento.md).
 
 ---
 
-## O protagonista: Depeg Risk Engine
+## Laboratório analítico legado
+
+Os módulos abaixo permanecem como laboratório de análise de risco, liquidez e trilhos. Eles não fazem parte da promessa de execução do MVP e não devem ser interpretados como preço ao vivo, aconselhamento ou verificação regulatória.
+
+---
+
+## Depeg Risk Engine
 
 O coração do projeto **não** é o comparador de custos — é o motor de risco. Ele calcula **VaR / Expected Shortfall** (a métrica que Basel III/FRTB adotou para risco de mercado) sobre o **histórico real de peg** das stablecoins (DefiLlama, 2022→hoje).
 
@@ -86,12 +96,13 @@ python -m pytest -q
 ```
 coletor_precos.py   ← única porta de rede (CoinGecko, DefiLlama, BCB, Treasury, Binance)
       │
+      ├── decisao_pre_pagamento.py (MVP: cotações declaradas → dossiê determinístico)
       ├── comparador.py    (Rail Comparator + compliance.py: filtro BCB 561)
       ├── depeg_risk.py    (VaR/ES — o núcleo) ←── ingestao.py → repositorio.py → db.py
       ├── otimizador.py    (alocação: reserva cash + giro stablecoin)
       └── custo_carrego.py (3º pilar: opportunity cost da reserva)
       │
-    app.py  (Streamlit — 5 abas)
+    app.py  (Streamlit — dossiê pré-pagamento + laboratórios analíticos)
 ```
 
 **Princípios:** todo I/O de rede isolado num módulo (resto testável sem rede); o ES é o único acoplamento matemático real (vira teto de alocação **e** haircut de liquidez).

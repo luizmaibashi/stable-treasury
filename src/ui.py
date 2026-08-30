@@ -130,19 +130,17 @@ def hero() -> None:
         f"""
         <div class="hero">
           <div class="eyebrow">Painel de tesouraria · pagamentos cross-border</div>
-          <h1>Uma stablecoin vale <span class="em">US$ 1,00</span> — até o dia em que não vale.</h1>
-          <p class="lede">Pagar um fornecedor no exterior por <b>stablecoin</b> (um dólar digital)
-          custa cerca de <b>90% menos</b> que uma transferência bancária internacional (Wire).
-          Mas essa moeda pode <b>romper a paridade</b> a qualquer hora — foi o que aconteceu com o
-          USDC na quebra do banco SVB, abaixo — e a economia tem <b>prazo para acabar</b>. Este
-          painel mede as duas coisas: <b>quanto você economiza</b> e <b>quanto risco corre</b>.</p>
-          {_peg_svg()}
-          <div class="chip">⏳ A brecha regulatória fecha em out/2026 — Resolução BCB 561</div>
+          <h1>Transforme cotações em uma <span class="em">decisão que se sustenta</span>.</h1>
+          <p class="lede">Antes de pagar um fornecedor no exterior, a tesouraria precisa comparar
+          propostas recebidas, caixa, prazo e exposição cambial — e deixar claro <b>quem informou o quê</b>.
+          O StableTreasury organiza essa evidência para aprovação humana; ele <b>não movimenta recursos</b>
+          nem substitui banco, corretora ou ERP.</p>
+          <div class="chip">Decisão assistida · execução fora da plataforma</div>
           <div class="steps">
-            <div class="step"><div class="k">01 · RISCO</div><div class="t">A moeda está confiável agora?</div><div class="d">Mede o risco de romper a paridade (VaR/ES) sobre o histórico real.</div></div>
-            <div class="step"><div class="k">02 · CAIXA</div><div class="t">Como dividir o dinheiro?</div><div class="d">Aloca reserva, hedge em dólar e giro — com regras de tesouraria real.</div></div>
-            <div class="step"><div class="k">03 · CUSTO</div><div class="t">Qual via paga menos?</div><div class="d">Compara PIX, Wire, USDT e USDC pelo custo total da operação.</div></div>
-            <div class="step"><div class="k">04 · LEI</div><div class="t">Isso é permitido?</div><div class="d">Valida a operação contra as regras do Banco Central.</div></div>
+            <div class="step"><div class="k">01 · FATURA</div><div class="t">O que precisa ser pago?</div><div class="d">Registre fornecedor, valor, vencimento e natureza declarada da operação.</div></div>
+            <div class="step"><div class="k">02 · COTAÇÕES</div><div class="t">Quais alternativas existem?</div><div class="d">Anexe pelo menos duas propostas de parceiros autorizados, com origem e horário.</div></div>
+            <div class="step"><div class="k">03 · EVIDÊNCIA</div><div class="t">O que muda em custo e caixa?</div><div class="d">Compare custo total, prazo, impacto no caixa e exposição cambial declarada.</div></div>
+            <div class="step"><div class="k">04 · APROVAÇÃO</div><div class="t">O que exige revisão?</div><div class="d">Sinalize exceções de política; o aprovador humano executa fora da plataforma.</div></div>
           </div>
         </div>
         """,
