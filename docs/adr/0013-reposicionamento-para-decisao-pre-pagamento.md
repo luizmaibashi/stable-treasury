@@ -50,7 +50,7 @@ O StableTreasury passa a priorizar um pacote auditável de decisão pré-pagamen
 
 ## 6. Referências
 
-- `docs/val-loop/reposicionamento-mercado/`
+- Registro interno de validação de mercado, arquivado fora da árvore pública
 - `docs/adr/0012-auditoria-2026-07-30-correcoes.md`
 - [Pesquisa Nextrade](https://www.nextradegroupllc.com/crossborder-payments)
 - [PwC Global Treasury Survey 2025](https://www.pwc.com/us/en/services/consulting/finance-accounting-transformation/library/2025-global-treasury-survey.html)

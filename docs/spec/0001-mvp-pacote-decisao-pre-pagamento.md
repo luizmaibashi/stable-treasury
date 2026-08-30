@@ -5,7 +5,7 @@
 **Dono da decisão e aprovação:** Luiz Maibashi  
 **ADR:** `docs/adr/0013-reposicionamento-para-decisao-pre-pagamento.md`
 
-**Evidência de implementação (2026-08-29):** `src/decisao_pre_pagamento.py`, aba “Decisão pré-pagamento” em `app.py`, 13 testes específicos e suíte integral com 107 testes aprovados. O PAVC está em [`docs/audit/2026-08-29-pavc-mvp-decisao-pre-pagamento.md`](../audit/2026-08-29-pavc-mvp-decisao-pre-pagamento.md).
+**Evidência de implementação (2026-08-29):** `src/decisao_pre_pagamento.py`, aba “Decisão pré-pagamento” em `app.py`, 13 testes específicos e suíte integral com 107 testes aprovados. O registro PAVC correspondente foi arquivado fora da árvore pública.
 
 > **Nota de posicionamento (2026-08-30):** esta spec continua sendo a fonte de verdade do comportamento implementado, não uma promessa comercial. A pesquisa documental não comprovou uma lacuna vendável frente a planilhas, portais, correspondentes e TMS; ver [`0003-varredura-documental-mercado-e-concorrencia.md`](../validation/0003-varredura-documental-mercado-e-concorrencia.md).
 

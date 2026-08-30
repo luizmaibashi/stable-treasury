@@ -108,6 +108,6 @@ os testes travam a calibração contra mudança acidental.
 ## 6. LINKS RELACIONADOS
 
 - `docs/adr/0003-pivot-depeg-risk-engine.md` (decisão de usar VaR/ES)
-- `docs/audit/pavc_audit.md` (débito da heurística que este motor substitui)
+- Registro PAVC interno arquivado (débito da heurística que este motor substitui)
 - `src/depeg_risk.py` (implementação), `tests/test_depeg_risk.py` (calibração travada)
 - Basel III/FRTB — Expected Shortfall 97,5% como métrica regulatória de risco de mercado

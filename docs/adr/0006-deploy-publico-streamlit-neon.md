@@ -8,7 +8,7 @@
 
 ## 1. CONTEXTO (O Quê?)
 
-Projeto reestruturado (docs/wayfinder/reestruturacao/SPEC_FINAL.md) reposiciona o
+Projeto reestruturado a partir de planejamento interno arquivado reposiciona o
 Depeg Risk Engine como protagonista da narrativa e exige link público — recrutador
 precisa ver o dashboard rodando sem clonar repositório. ADR-0005 já estabeleceu
 Postgres + SQLAlchemy como camada de persistência com dev/prod parity como requisito
@@ -78,5 +78,5 @@ restart) — SQLite em produção perderia todo o histórico 2022→hoje já ing
 
 - `docs/adr/0005-persistencia-sqlalchemy-docker.md` (decisão que este ADR estende)
 - `docs/adr/0003-pivot-depeg-risk-engine.md` (já apontava Supabase/Neon como caminho)
-- `docs/wayfinder/reestruturacao/SPEC_FINAL.md` (origem desta reestruturação)
+- Planejamento interno arquivado (origem desta reestruturação)
 - `src/db.py`, `.env.example` (DATABASE_URL)

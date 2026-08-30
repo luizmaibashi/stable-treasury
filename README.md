@@ -1,126 +1,46 @@
-# 🏦 StableTreasury
+# StableTreasury
 
-**Projeto de portfólio: demonstração de um motor determinístico e fail-safe que organiza cotações declaradas em um dossiê pré-pagamento.**
+[Abrir a demonstração pública](https://stable-treasury-khrmolkmu738evtrxd9aqv.streamlit.app/)
 
-### 🔗 [Abrir a demonstração pública](https://stable-treasury-khrmolkmu738evtrxd9aqv.streamlit.app/)
+StableTreasury é uma demonstração de engenharia para investigar uma pergunta simples: o que acontece com a gestão de liquidez quando uma stablecoin perde a paridade com o dólar?
 
-> O motor não executa pagamentos, não custodia ativos, não gera cotações e não dá parecer jurídico. Ele compara propostas declaradas, calcula custo total, prazo, impacto no caixa e exposição cambial, e aponta exceções de política. A decisão e a execução continuam humanas e fora da plataforma.
+O centro do projeto é o Depeg Risk Engine. Ele lê o histórico de preço de USDC e USDT, calcula VaR e Expected Shortfall e mostra como o risco mudaria limites de exposição e o haircut de liquidez. A demonstração também traz cenários de custos por trilho, compliance e custo de carrego. São laboratórios determinísticos, não recomendações operacionais.
 
----
+## O que vale observar
 
-## O que a demonstração exercita
+O gráfico histórico é o melhor ponto de partida. O evento do SVB, em março de 2023, aparece porque o preço do USDC caiu na série usada pelo cálculo. A data não foi programada no modelo.
 
-O cenário sintético modela uma fatura internacional com duas cotações declaradas. Ele existe para demonstrar decisões de engenharia: cálculo reproduzível, proveniência temporal explícita e falha segura quando dados ou política não permitem uma recomendação condicionada.
+Na aba Rail Comparator, o resultado é sempre um cenário. O sistema mostra as premissas, a sensibilidade ao spread de Wire e as limitações das fontes públicas. Se Binance ou PolygonScan não responderem, o cálculo continua com o fallback documentado e a tela identifica o modo degradado.
 
-O StableTreasury demonstra um fluxo repetível:
+## Limites claros
 
-1. Registra a fatura, vencimento, moeda e fluxo previsto.
-2. Compara ao menos duas cotações declaradas, com fonte e horário.
-3. Mostra o menor custo total, prazo, caixa após pagamento e exposição líquida em USD.
-4. Bloqueia recomendação quando há dado ausente, cotação vencida/futura, caixa insuficiente ou exceção de política.
-5. Produz uma recomendação apenas quando o caso está pronto para **aprovação humana**.
+Nada aqui executa pagamento, negocia câmbio, custodia ativo, gera cotação ou emite parecer jurídico. A hipótese de transformar esse trabalho em produto comercial foi pesquisada e encerrada: não foi encontrada evidência suficiente de uma lacuna frente a bancos, TMS e fluxos já existentes. O registro dessa decisão está em [Validação de mercado](docs/validation/0003-varredura-documental-mercado-e-concorrencia.md).
 
-O [gate técnico](docs/validation/0001-kill-gate-contra-planilha.md) foi aprovado: o dossiê é reproduzível e seguro nos cenários declarados.
+Os dados públicos têm latência, podem falhar e não são uma cotação em tempo real. O histórico persistido é atualizado sob demanda, com TTL de 24 horas, ingestão apenas do delta e fallback explícito para o último dado válido.
 
-O [gate documental de mercado](docs/validation/0003-varredura-documental-mercado-e-concorrencia.md) **falhou**: a pesquisa não comprovou uma lacuna de produto frente a planilhas, portais bancários, correspondentes e TMS. Por isso esta página não faz alegação de produto, adoção ou product-market fit.
-
-## Limites do cenário
-
-O caso de uso simula um importador B2B industrial médio; não representa um ICP validado. Não é TMS/ERP, mesa de câmbio, banco, corretora, custodiante ou sistema de execução. Integrações, login, multiempresa, geração de cotações, hedge e IA generativa permanecem fora do escopo. A definição técnica está em [`docs/spec/0001-mvp-pacote-decisao-pre-pagamento.md`](docs/spec/0001-mvp-pacote-decisao-pre-pagamento.md).
-
----
-
-## Laboratório analítico legado
-
-Os módulos abaixo permanecem como laboratórios de análise de risco, liquidez e trilhos. Eles não fazem parte da promessa de execução do MVP e não devem ser interpretados como cotação, aconselhamento ou verificação regulatória. Quando consultam fontes públicas, o resultado é uma observação com horário e fallback explícito — não dado garantidamente em tempo real.
-
----
-
-## Depeg Risk Engine
-
-O coração do projeto **não** é o comparador de custos — é o motor de risco. Ele calcula **VaR / Expected Shortfall** (a métrica que Basel III/FRTB adotou para risco de mercado) sobre o **histórico real de peg** das stablecoins (DefiLlama, 2022→hoje).
-
-**A validação mais forte:** o spike do **colapso do Silicon Valley Bank (mar/2023)** — quando a Circle tinha US$ 3,3 bi das reservas do USDC presos no SVB e a moeda despegou para ~US$ 0,88 — **aparece sozinho** no gráfico histórico, sem nenhum hardcode de data. *O modelo descobre a crise porque o preço real caiu naquela janela.*
-
-📄 **[Deep Dive completo do motor de risco →](docs/DEEP_DIVE_DEPEG_ENGINE.md)** (o que é ES, por que 90d/97%, os spikes reais, o que um CFO faz)
-
----
-
-## Três laboratórios técnicos
-
-Os módulos aplicam ideias de tesouraria em cenários sintéticos. Não constituem uma recomendação operacional:
-
-| Pilar | O que faz | Rigor |
-|-------|-----------|-------|
-| **Custos por trilho** | Comparação paramétrica de custo por trilho, segmentada por caso de uso (doméstico × cross-border) | Inclui premissas de on-ramp, gas e off-ramp; o spread de Wire é configurável e a fronteira de indiferença expõe a sensibilidade do resultado. Não representa cotação negociável. |
-| **Risco de depeg** | VaR/ES sobre carteira USDC+USDT ponderada, em série horária | O histórico reproduz o evento SVB sem hardcode. O piso de ES estressado evita que o haircut colapse em períodos calmos; a amostra de eventos extremos continua uma limitação explícita. |
-| **Custo de carrego** | Cenário de custo de oportunidade da reserva de cash (BRL vs CDI, USD vs T-bill) | Séries públicas têm cadências próprias. Reserva é cash; stablecoin não é caixa equivalente. O diferencial CDI−T-bill é sinalizado como risco cambial, não retorno sem risco. |
-
-**Decisão-chave de conformidade:** a reserva de emergência é **cash-only**. Stablecoin entra apenas como **capital de giro em trânsito** no trilho, com teto triplo (necessidade de fluxo / cap de política 5% / teto de depeg) e haircut pelo ES. Perfil de referência ancorado em **Azul S.A. FY2024** (aérea com passivo em USD — caso de livro-texto de tesouraria cambial). Decisão de hedge cambial usa a **exposição líquida** (recebimento − pagamento), não só "existe recebimento em USD?" — protege perfis com passivo pesado como o da Azul.
-
----
-
-## Stack
-
-`Python` · `Streamlit` (dashboard) · `Polars` (dados) · `NumPy` (VaR/ES) · `SQLAlchemy` + `PostgreSQL` (histórico) · APIs gratuitas: **CoinGecko**, **DefiLlama**, **BCB SGS**, **US Treasury**, **Binance** (order book).
-
-Custo zero de operação — todas as fontes de dado são públicas e gratuitas.
-
----
-
-## Como rodar
+## Rodar localmente
 
 ```bash
-# 1. Dependências
 pip install -r requirements.txt
-
-# 2. Banco local (Postgres em Docker)
 docker compose up -d
-
-# 3. Popular o histórico (schema + backfill 2022→hoje + backtest de risco)
 python -m scripts.seed_db
-
-# 4. Dashboard
 streamlit run app.py
 ```
 
-Para produção sem Docker, aponte `DATABASE_URL` para um Postgres gerenciado (ex: Neon free tier) — só a variável de ambiente muda, o código não (ver [ADR-0006](docs/adr/0006-deploy-publico-streamlit-neon.md)).
+Para executar os testes:
 
 ```bash
-# Testes
 python -m pytest -q
 ```
 
----
+## Como o projeto se organiza
 
-## Arquitetura
+- `src/depeg_risk.py`: cálculo de VaR e Expected Shortfall.
+- `src/ingestao.py`, `src/repositorio.py` e `src/db.py`: histórico e persistência.
+- `src/comparador.py`: cenários de custo e estado de fallback das fontes monitoradas.
+- `src/views/`: interface Streamlit.
+- `tests/`: testes do comportamento determinístico.
 
-```
-coletor_precos.py   ← única porta de rede (CoinGecko, DefiLlama, BCB, Treasury, Binance)
-      │
-      ├── decisao_pre_pagamento.py (MVP: cotações declaradas → dossiê determinístico)
-      ├── comparador.py    (Rail Comparator + compliance.py: filtro BCB 561)
-      ├── depeg_risk.py    (VaR/ES — o núcleo) ←── ingestao.py → repositorio.py → db.py
-      ├── otimizador.py    (alocação: reserva cash + giro stablecoin)
-      └── custo_carrego.py (3º pilar: opportunity cost da reserva)
-      │
-    app.py  (Streamlit — dossiê pré-pagamento + laboratórios analíticos)
-```
+A documentação foi separada por finalidade em [docs/](docs/README.md). Para entender o modelo, comece pelo [Deep Dive do Depeg Risk Engine](docs/DEEP_DIVE_DEPEG_ENGINE.md). Para dados e reprodução, veja a [proveniência](reports/proveniencia_stable_treasury.md).
 
-**Princípios:** todo I/O de rede isolado num módulo (resto testável sem rede); o ES é o único acoplamento matemático real (vira teto de alocação **e** haircut de liquidez).
-
-📄 **[Deep Dive do motor de risco →](docs/DEEP_DIVE_DEPEG_ENGINE.md)** · **[ADRs (decisões) →](docs/adr/)** · **[Auditoria técnica →](docs/audit/)**
-
-Os materiais de narrativa anteriores estão preservados como histórico e identificados no próprio arquivo; eles não descrevem o posicionamento público atual.
-
----
-
-## O que este projeto assume abertamente
-
-Rigor é também saber o que **não** se sabe. Débitos técnicos, premissas e escopo negativo estão documentados em [`AGENTS.md`](AGENTS.md) — incluindo a decisão consciente de **não** transformar o cap de política de risco (5%) em "medição": é uma decisão normativa de board, não uma quantidade de mercado. Fingir uma fórmula ali seria o "número mágico" que o projeto combate.
-
-Auditoria mais recente (2026-07-30, [ADR-0012](docs/adr/0012-auditoria-2026-07-30-correcoes.md)): corrigiu um erro de sinal no hedge cambial (recomendava liquidar USD numa exposição líquida SHORT), uma incoerência entre teto e haircut de risco no fallback do motor, e expôs — sem fingir resolver — três limitações estruturais que não têm solução gratuita: a defasagem entre PTAX (D-1) e preço cripto em tempo real, o diferencial de juros CDI×T-bill como carry trade (não "dinheiro grátis"), e a proclicidade do VaR histórico (mitigada com um piso de ES estressado, não eliminada).
-
----
-
-*Projeto de portfolio — não é assessoria jurídica, fiscal ou de investimento. Nenhuma transação real é executada.*
+Projeto de portfólio. Não é assessoria jurídica, fiscal ou de investimento.

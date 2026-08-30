@@ -106,7 +106,7 @@ Ordem de grandeza calibrada num player real de fintech brasileira. **Fonte: Nu H
 
 ## 7. LINKS RELACIONADOS
 
-- `docs/audit/2026-07-14_auditoria_tecnica_negocio_matematica.md` (F3, origem)
+- Auditoria interna arquivada (F3, origem)
 - `docs/adr/0004-parametros-depeg-risk-engine.md` (ES que vira haircut/teto)
 - `docs/adr/0003-pivot-depeg-risk-engine.md` (escopo negativo, preservação)
 - Nu Holdings Form 20-F FY2025 — https://www.sec.gov/Archives/edgar/data/1691493/000129281426002166/nuform20f_2025.htm

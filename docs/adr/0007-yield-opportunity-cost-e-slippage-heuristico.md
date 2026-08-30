@@ -77,7 +77,7 @@ Adicionar heurística de spread adicional por faixa de volume em `comparador.py`
 
 **Métrica de sucesso:** card de Opportunity Cost funcionando com dado real da DefiLlama; heurística de volume em `comparador.py` com disclaimer visível na UI (mesmo padrão do spread bancário).
 
-**Timeline:** independente do Deep Dive do Depeg Risk Engine (RETOMA_EM_CASA.md) — módulos distintos (`comparador.py` + novo coletor de yield vs. `depeg_risk.py`). Pode ser feito em qualquer ordem.
+**Timeline:** independente do estudo interno do Depeg Risk Engine. São módulos distintos (`comparador.py` + novo coletor de yield vs. `depeg_risk.py`) e podiam ser feitos em qualquer ordem.
 
 **Risco de regressão:** `depeg_risk.py` e `otimizador.py` não são tocados nesta fase — mudança isolada em `comparador.py` (heurística C) + novo módulo de yield (B) + `app.py` (novo card).
 

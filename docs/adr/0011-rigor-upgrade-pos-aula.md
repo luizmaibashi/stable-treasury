@@ -2,7 +2,7 @@
 
 **Data**: 2026-07-14
 **Status**: Accepted (implementação incremental, item a item)
-**Contexto**: revisão crítica do usuário sobre a `AULA_TECNICA_COMPLETA.md`. Seis questões, cinco viraram melhorias reais de rigor; uma (cap de política) permanece premissa por ser normativa, não de mercado.
+**Contexto**: revisão crítica do usuário sobre uma aula técnica interna. Seis questões, cinco viraram melhorias reais de rigor; uma (cap de política) permanece premissa por ser normativa, não de mercado.
 
 > **Princípio guia**: onde existe dado de mercado gratuito que substitua uma premissa por uma medição, substituir. Onde a premissa é normativa (decisão de board), mantê-la explícita — fingir medição seria o "número mágico" que o ADR-0003 combateu.
 
@@ -94,7 +94,7 @@ Cap de sleeve de ativo digital (5%) é **decisão normativa do board**, não qua
 
 ## 7. LINKS
 
-- `docs/AULA_TECNICA_COMPLETA.md` (origem das questões)
+- Aula técnica interna arquivada (origem das questões)
 - `docs/adr/0008` (custo do Rail Comparator, que o #1 e #3 refinam)
 - `docs/adr/0004` (parâmetros do risco, que o #2 e #4 refinam)
 - `docs/adr/0009` (perfil corporativo, que o #5 recalibra)

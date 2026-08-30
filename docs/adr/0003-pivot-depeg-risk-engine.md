@@ -8,7 +8,7 @@
 
 ## 1. CONTEXTO (O QUÊ?)
 
-O PAVC audit (`docs/audit/pavc_audit.md`) documentou 3 falhas nunca corrigidas (margem gas fee, spread fixo, IOF stablecoin sem tratamento de risco fiscal) e uma quarta falha não documentada anteriormente: o `Liquidity Optimizer` aloca caixa por heurística fixa (50/30/20) sem nenhuma base quantitativa — não é modelo, é chute com aparência de modelo.
+Uma auditoria PAVC interna documentou três falhas nunca corrigidas (margem gas fee, spread fixo, IOF stablecoin sem tratamento de risco fiscal) e uma quarta falha não documentada anteriormente: o `Liquidity Optimizer` aloca caixa por heurística fixa (50/30/20) sem nenhuma base quantitativa.
 
 Avaliação honesta de mercado (sabatina com o usuário): o projeto tem baixo TAM real como produto (nenhuma empresa brasileira faz liquidação B2B via stablecoin em escala hoje) e não deve ser vendido como sistema de produção. Valor real está em ser **sinal de portfolio** — interseção rara de rigor quantitativo + regulatório (BCB) + crypto.
 
@@ -81,7 +81,7 @@ Essa correção evita construir o Depeg Risk Engine sobre uma fonte que não alc
 
 ## 6. LINKS RELACIONADOS
 
-- `docs/audit/pavc_audit.md` (falhas que motivaram o pivot)
+- Registro PAVC interno arquivado (falhas que motivaram o pivot)
 - `docs/adr/0001-fontes-de-dados.md`, `docs/adr/0002-arquitetura-streamlit-modulos.md`
 - `docs/adr/0004-parametros-depeg-risk-engine.md` (calibração e parâmetros do motor de risco)
 - `AGENTS.md` (Linguagem Ubíqua — estendida com termos: VaR, Expected Shortfall, depeg, proof-of-reserve, attestation)

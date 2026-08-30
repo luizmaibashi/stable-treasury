@@ -2,7 +2,7 @@
 
 **Data**: 2026-07-14
 **Status**: Accepted
-**Contexto**: auditoria técnica/negócio/matemática 2026-07-14 (`docs/audit/2026-07-14_auditoria_tecnica_negocio_matematica.md`), achados F1 e F2 — os dois furos críticos que invalidavam a manchete de economia do projeto.
+**Contexto**: auditoria técnica, de negócio e matemática interna de 2026-07-14, achados F1 e F2, os dois furos críticos que invalidavam a antiga manchete de economia do projeto.
 
 ---
 
@@ -73,7 +73,7 @@ PIX deixa de "vencer" comparações que não disputa. Perfis sintéticos rodam e
 
 ## 5. IMPACTO & VALIDAÇÃO
 
-**Métrica de sucesso:** testes de propriedade econômica (F9) — custo stablecoin > 0 e inclui componente de conversão; só trilhos elegíveis ao caso de uso entram; eFX remove stablecoin. Narrativa de economia atualizada em `DIRECAO_DO_PLANO.md`.
+**Métrica de sucesso:** testes de propriedade econômica (F9) confirmam que o custo de stablecoin é positivo e inclui conversão; só trilhos elegíveis ao caso de uso entram; eFX remove stablecoin. A narrativa comercial associada foi posteriormente encerrada.
 
 **Risco de regressão:** muda os números exibidos e a story. Testes antigos que cristalizavam o bug (`test_pix_custo_zero` em comparação cross-border) precisam ser revistos.
 
@@ -81,6 +81,6 @@ PIX deixa de "vencer" comparações que não disputa. Perfis sintéticos rodam e
 
 ## 6. LINKS RELACIONADOS
 
-- `docs/audit/2026-07-14_auditoria_tecnica_negocio_matematica.md` (F1, F2, F7 que originaram este ADR)
+- Auditoria interna arquivada (F1, F2 e F7 que originaram este ADR)
 - `docs/adr/0007-yield-opportunity-cost-e-slippage-heuristico.md` (ponto C — slippage por volume, convergente com o on-ramp deste ADR)
 - `src/comparador.py` (implementação), `src/compliance.py::filtrar_trilhos_permitidos` (filtro religado)

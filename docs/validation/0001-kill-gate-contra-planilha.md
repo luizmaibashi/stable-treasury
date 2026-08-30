@@ -42,10 +42,9 @@ O MVP passa no **gate técnico** se, nos três cenários:
 
 O MVP só passa no **gate de mercado** após um tesoureiro comparar o mesmo caso com sua planilha. Métricas: tempo até decisão, número de perguntas de revisão, exceções encontradas e intenção de reutilizar. Se o artefato não superar a planilha em pelo menos clareza/rastreabilidade de exceções, a direção deve ser interrompida.
 
-O procedimento enxuto, os critérios de recrutamento e a regra de parada estão em
-[`0002-protocolo-gate-de-mercado.md`](0002-protocolo-gate-de-mercado.md). A
-primeira entrevista é apenas um sinal de descoberta; evidência inicial de mercado
-exige três participantes válidos e independentes.
+O procedimento de recrutamento pertence ao arquivo privado do projeto. A primeira
+entrevista seria apenas um sinal de descoberta; evidência inicial de mercado exigiria
+três participantes válidos e independentes.
 
 Enquanto entrevistas não forem parte da estratégia, a
 [`0003-varredura-documental-mercado-e-concorrencia.md`](0003-varredura-documental-mercado-e-concorrencia.md)
