@@ -1,8 +1,16 @@
 # Deploy — StableTreasury (Streamlit Community Cloud + Neon)
 
+> **Estado de release em 2026-08-30:** este roteiro é histórico. O repositório público e
+> o dashboard publicados estão defasados em relação ao código local; não execute um novo
+> deploy antes de (1) rotacionar a credencial Neon anteriormente exposta e (2) decidir se
+> o ativo público será atualizado como demonstração técnica ou arquivado. Ver
+> `docs/audit/2026-08-30-gap-release-publico.md`.
+
 > Guia passo a passo para colocar o app no ar com um **link público**, custo zero.
 > O código **não muda** entre local e produção — só a variável `DATABASE_URL` (ADR-0005/0006).
-> Tempo estimado: ~20 min. Nada aqui foi executado ainda — este é o checklist.
+> Tempo estimado: ~20 min para uma publicação nova. A primeira publicação foi executada
+> em 2026-07-16; este documento não é evidência de que o ambiente público atual esteja
+> sincronizado ou apto a divulgação.
 
 ## Visão geral
 
