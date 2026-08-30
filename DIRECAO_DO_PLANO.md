@@ -1,5 +1,7 @@
 # 🎯 DIREÇÃO DO PLANO — StableTreasury
 
+> **ARQUIVO HISTÓRICO — não usar como narrativa pública.** Registrava a hipótese comercial de economia/arbitragem em stablecoin, encerrada pelo [gate documental](docs/validation/0003-varredura-documental-mercado-e-concorrencia.md) em 2026-08-30. A peça pública atual é uma demonstração técnica do Depeg Risk Engine e de cenários determinísticos, sem promessa de produto ou recomendação operacional.
+
 ## O Problema
 
 Tesourarias de fintechs brasileiras precisam decidir:

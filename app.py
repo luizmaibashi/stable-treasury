@@ -44,7 +44,7 @@ try:
 except ValueError as erro:
     st.warning(f"Histórico ainda não inicializado: {erro}")
 except Exception:
-    st.warning("Atualização automática indisponível; exibindo o último histórico válido.")
+    st.warning("Atualização sob demanda indisponível; exibindo o último histórico válido.")
 
 tab_risco, tab_liquidez, tab_rails, tab_compliance, tab_decisao, tab_config = st.tabs([
     "📈 Risco de Depeg",

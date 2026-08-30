@@ -1,5 +1,7 @@
 # Sessão 2026-07-04 — StableTreasury: Implantação completa
 
+> **ARQUIVO HISTÓRICO — não usar como narrativa pública.** Esta nota de implantação antecede o gate documental de 2026-08-30 e contém hipóteses comerciais e estimativas de economia que não sustentam o posicionamento atual. Consulte `README.md`, `docs/adr/0014-dashboard-modular-para-portfolio.md` e `docs/adr/0015-atualizacao-sob-demanda-da-demo.md` para a demonstração técnica vigente.
+
 ## Contexto
 Planejamento e implementação do projeto StableTreasury (02_PORTFOLIO) — motor de decisão para fintechs compararem trilhos de pagamento B2B.
 

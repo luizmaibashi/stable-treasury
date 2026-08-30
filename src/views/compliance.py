@@ -5,15 +5,13 @@ from src.ui import intro
 
 
 def renderizar():
-    st.header("Validador de Compliance BCB")
+    st.header("Cenário de regras BCB")
     intro(
-        "Essa operação é permitida pela regulação brasileira?",
-        'O Banco Central tem regras sobre usar ativos digitais em câmbio. A mais importante: a '
-        '<span class="term">Resolução BCB 561</span> proíbe stablecoin como via de liquidação em câmbio '
-        'eletrônico a partir de <b>out/2026</b> — é o prazo de validade da economia. Outras regras exigem '
-        'KYC (identificação) e declaração de valores acima de R$ 500 mil.',
-        'preencha a operação e valide. <b>Vermelho</b> = bloqueada (ilegal); <b>amarelo</b> = permitida, '
-        'mas exige uma providência. Teste "Eletrônico Câmbio" + trilho USDT para ver a BCB 561 bloquear.',
+        "Como regras codificadas alteram um cenário de transação?",
+        'Este laboratório traduz regras selecionadas do Banco Central em condicionais determinísticas para fins de '
+        'engenharia. Não é parecer jurídico, validação regulatória nem base para executar uma operação.',
+        'preencha o cenário. <b>Vermelho</b> significa que a regra codificada o bloqueia; <b>amarelo</b> indica '
+        'uma providência modelada. Confirme o enquadramento com instituição autorizada e assessoria competente.',
     )
 
     col_a, col_b = st.columns(2)
@@ -36,9 +34,9 @@ def renderizar():
             resultado = validar_transacao(transacao)
 
             if resultado["permitido"]:
-                st.success("✅ Transação permitida")
+                st.success("✅ Cenário não bloqueado pelas regras codificadas")
             else:
-                st.error("❌ Transação bloqueada")
+                st.error("❌ Cenário bloqueado pelas regras codificadas")
 
             if resultado["erros"]:
                 st.subheader("Erros")

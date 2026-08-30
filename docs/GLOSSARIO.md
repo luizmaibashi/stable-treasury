@@ -1,5 +1,7 @@
 # Glossário — StableTreasury
 
+> **Nota de posicionamento (2026-08-30):** a linguagem canônica do código está em `AGENTS.md`. Entradas deste glossário que descrevem arbitragem, janela regulatória ou economia por trilho pertencem à narrativa histórica e não são uma alegação do projeto público atual.
+
 > Todos os termos usados no projeto, agrupados por domínio. Onde importa, a coluna **por que importa** explica a decisão por trás do conceito. Para a Linguagem Ubíqua canônica (fonte de verdade dos termos de código), ver `AGENTS.md`.
 
 ---

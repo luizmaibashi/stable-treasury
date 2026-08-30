@@ -1,5 +1,7 @@
 # Deep Dive — Depeg Risk Engine (as 5 perguntas)
 
+> **Nota de posicionamento (2026-08-30):** este documento continua útil para explicar o motor de risco e seus cálculos. Trechos que conectam o resultado a economia por trilho, arbitragem ou pitch comercial são históricos e não descrevem a demonstração pública atual. O projeto não recomenda nem executa operações.
+
 > **Propósito**: entender o coração quantitativo do projeto a ponto de defendê-lo numa banca / entrevista / mesa. Base para o README e para a story de pitch.
 > **Método**: toda afirmação numérica aqui foi computada sobre **dado real** (DefiLlama, série diária USDC 2022→2026, 1.653 pontos), não estimada.
 > **Data**: 2026-07-14

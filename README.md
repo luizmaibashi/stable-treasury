@@ -2,7 +2,7 @@
 
 **Projeto de portfólio: demonstração de um motor determinístico e fail-safe que organiza cotações declaradas em um dossiê pré-pagamento.**
 
-### 🔗 [Ver o dashboard ao vivo](https://stable-treasury-khrmolkmu738evtrxd9aqv.streamlit.app/)
+### 🔗 [Abrir a demonstração pública](https://stable-treasury-khrmolkmu738evtrxd9aqv.streamlit.app/)
 
 > O motor não executa pagamentos, não custodia ativos, não gera cotações e não dá parecer jurídico. Ele compara propostas declaradas, calcula custo total, prazo, impacto no caixa e exposição cambial, e aponta exceções de política. A decisão e a execução continuam humanas e fora da plataforma.
 
@@ -32,7 +32,7 @@ O caso de uso simula um importador B2B industrial médio; não representa um ICP
 
 ## Laboratório analítico legado
 
-Os módulos abaixo permanecem como laboratório de análise de risco, liquidez e trilhos. Eles não fazem parte da promessa de execução do MVP e não devem ser interpretados como preço ao vivo, aconselhamento ou verificação regulatória.
+Os módulos abaixo permanecem como laboratórios de análise de risco, liquidez e trilhos. Eles não fazem parte da promessa de execução do MVP e não devem ser interpretados como cotação, aconselhamento ou verificação regulatória. Quando consultam fontes públicas, o resultado é uma observação com horário e fallback explícito — não dado garantidamente em tempo real.
 
 ---
 
@@ -46,15 +46,15 @@ O coração do projeto **não** é o comparador de custos — é o motor de risc
 
 ---
 
-## Os 3 pilares (tesouraria corporativa de verdade)
+## Três laboratórios técnicos
 
-Modelado segundo a estrutura clássica de tesouraria — **não** como um "dashboard de cripto":
+Os módulos aplicam ideias de tesouraria em cenários sintéticos. Não constituem uma recomendação operacional:
 
 | Pilar | O que faz | Rigor |
 |-------|-----------|-------|
-| **Cash Management** | Rail Comparator: custo all-in por trilho, segmentado por caso de uso (doméstico × cross-border) | Custo do trilho stablecoin inclui on-ramp (prêmio real) + gas + off-ramp; slippage medido no **order book real e da moeda certa** (Binance VWAP, USDT e USDC separados); spread do Wire é **parâmetro configurável** (não constante fixa) com **fronteira de indiferença** calculável |
-| **Risk / Hedging** | Depeg Risk Engine: VaR/ES sobre carteira real (USDC+USDT ponderados), série **horária** | Correlação emerge do dado; ES(97%) do evento SVB medido ao vivo em 4,18% horário (margem de 0,82pp até o corte de risco); haircut de liquidez tem **piso de ES estressado** contra a proclicidade do VaR histórico |
-| **Capital Markets & Funding** | Custo de carrego da reserva de cash (BRL vs CDI, USD vs T-bill) | Taxas **ao vivo** (BCB SGS + US Treasury); reserva é **cash** — stablecoin não é caixa equivalente (US GAAP/IFRS, ASU 2023-08); diferencial CDI−T-bill sinalizado como carry trade cambial, não "dinheiro sem risco" |
+| **Custos por trilho** | Comparação paramétrica de custo por trilho, segmentada por caso de uso (doméstico × cross-border) | Inclui premissas de on-ramp, gas e off-ramp; o spread de Wire é configurável e a fronteira de indiferença expõe a sensibilidade do resultado. Não representa cotação negociável. |
+| **Risco de depeg** | VaR/ES sobre carteira USDC+USDT ponderada, em série horária | O histórico reproduz o evento SVB sem hardcode. O piso de ES estressado evita que o haircut colapse em períodos calmos; a amostra de eventos extremos continua uma limitação explícita. |
+| **Custo de carrego** | Cenário de custo de oportunidade da reserva de cash (BRL vs CDI, USD vs T-bill) | Séries públicas têm cadências próprias. Reserva é cash; stablecoin não é caixa equivalente. O diferencial CDI−T-bill é sinalizado como risco cambial, não retorno sem risco. |
 
 **Decisão-chave de conformidade:** a reserva de emergência é **cash-only**. Stablecoin entra apenas como **capital de giro em trânsito** no trilho, com teto triplo (necessidade de fluxo / cap de política 5% / teto de depeg) e haircut pelo ES. Perfil de referência ancorado em **Azul S.A. FY2024** (aérea com passivo em USD — caso de livro-texto de tesouraria cambial). Decisão de hedge cambial usa a **exposição líquida** (recebimento − pagamento), não só "existe recebimento em USD?" — protege perfis com passivo pesado como o da Azul.
 
@@ -87,7 +87,7 @@ streamlit run app.py
 Para produção sem Docker, aponte `DATABASE_URL` para um Postgres gerenciado (ex: Neon free tier) — só a variável de ambiente muda, o código não (ver [ADR-0006](docs/adr/0006-deploy-publico-streamlit-neon.md)).
 
 ```bash
-# Testes (94)
+# Testes
 python -m pytest -q
 ```
 
@@ -109,7 +109,9 @@ coletor_precos.py   ← única porta de rede (CoinGecko, DefiLlama, BCB, Treasur
 
 **Princípios:** todo I/O de rede isolado num módulo (resto testável sem rede); o ES é o único acoplamento matemático real (vira teto de alocação **e** haircut de liquidez).
 
-📄 **[Aula técnica completa (ponta a ponta) →](docs/AULA_TECNICA_COMPLETA.md)** · **[ADRs (decisões) →](docs/adr/)** · **[Auditoria técnica →](docs/audit/)**
+📄 **[Deep Dive do motor de risco →](docs/DEEP_DIVE_DEPEG_ENGINE.md)** · **[ADRs (decisões) →](docs/adr/)** · **[Auditoria técnica →](docs/audit/)**
+
+Os materiais de narrativa anteriores estão preservados como histórico e identificados no próprio arquivo; eles não descrevem o posicionamento público atual.
 
 ---
 

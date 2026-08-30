@@ -1,5 +1,7 @@
 # StableTreasury — A Jornada de Negócio Ponta a Ponta
 
+> **ARQUIVO HISTÓRICO — não usar como narrativa pública.** Este cenário de negócio foi produzido antes de a pesquisa encerrar a hipótese comercial. Mantém valor como registro das premissas e dos limites que foram testados, mas não representa cliente, benefício, economia, recomendação ou produto validado. A demonstração pública atual é técnica e centrada no Depeg Risk Engine.
+
 > **Player**: Azul S.A. (FY2024: R$19,5bi receita, R$7,5bi liquidez total, passivo pesado em USD)
 > **Problema**: Todo mês precisa pagar ~US$250mi em leasing de aeronaves, combustível e manutenção no exterior.
 > **Sistema**: StableTreasury — motor de decisão que compara trilhos, mede risco de stablecoin e otimiza alocação.

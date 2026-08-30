@@ -5,14 +5,14 @@ from src.ui import intro
 
 
 def renderizar():
-    st.header("Comparador de Trilhos")
+    st.header("Cenário de comparação de trilhos")
     intro(
-        "Qual via de pagamento custa menos para mandar dinheiro ao exterior?",
-        'Um "trilho" é o caminho que o dinheiro percorre: <span class="term">PIX</span> (só dentro do Brasil), '
-        '<span class="term">Wire</span> (transferência bancária internacional) ou <span class="term">USDT/USDC</span> '
-        '(dólares digitais). Cada um tem um custo total diferente: spread de câmbio, imposto (IOF), tarifas e taxa de rede.',
-        'a tabela ordena do <b>mais barato ao mais caro</b>. O trilho stablecoin costuma custar ~90% menos que o Wire — '
-        'mas isso muda conforme o <b>tipo de operação</b>: importar bens é isento de IOF, então a vantagem encolhe.',
+        "Como as premissas alteram o custo estimado de cada trilho?",
+        'Este é um cenário técnico, não uma cotação, recomendação de rota ou simulação de execução. Um "trilho" é o caminho '
+        'que o dinheiro percorre: <span class="term">PIX</span> (só dentro do Brasil), <span class="term">Wire</span> '
+        '(transferência bancária internacional) ou <span class="term">USDT/USDC</span> (ativos digitais).',
+        'altere o caso de uso, o tipo de operação e o spread de Wire para observar a sensibilidade. A tabela só ordena os '
+        'custos calculados pelas premissas declaradas; não afirma qual trilho deve ser usado.',
     )
 
     col1, col2 = st.columns([1, 2])
@@ -51,8 +51,8 @@ def renderizar():
                  "(achado #1) — mexa no slider e veja a conclusão mudar.",
         )
 
-        if st.button("Comparar trilhos", type="primary"):
-            with st.spinner("Consultando preços on-chain..."):
+        if st.button("Simular cenário", type="primary"):
+            with st.spinner("Calculando o cenário com as fontes disponíveis..."):
                 try:
                     df = comparar_custos(
                         valor, tipo_op, caso_uso=caso_uso, eletronico_cambio=efx,
@@ -65,9 +65,9 @@ def renderizar():
                     economia = float(pior["custo_total_brl"][0]) - float(melhor["custo_total_brl"][0])
                     pct = float(pior["custo_percent"][0]) - float(melhor["custo_percent"][0])
 
-                    st.success(f"Melhor trilho: **{melhor['trilho'][0]}** ({melhor['custo_percent'][0]:.2f}%)")
+                    st.success(f"Menor custo no cenário: **{melhor['trilho'][0]}** ({melhor['custo_percent'][0]:.2f}%)")
                     if economia > 0:
-                        st.info(f"Economia potencial: R$ {economia:,.2f} ({pct:.2f} pp) vs. pior trilho")
+                        st.info(f"Diferença calculada: R$ {economia:,.2f} ({pct:.2f} pp) entre os extremos do cenário")
                     elif caso_uso == "domestico":
                         st.caption(
                             "Doméstico só tem PIX elegível hoje — sem TED como segundo trilho pra "
@@ -99,8 +99,8 @@ def renderizar():
                     st.caption(
                         "Custo do trilho stablecoin = spread on-ramp (BRL→USDT, prêmio real de "
                         "mercado) + gas + spread off-ramp (USDT→USD, 0,3% fixo). Não é 'só gas' "
-                        "(ADR-0008). A economia vs. Wire existe porque o stablecoin dribla o IOF de "
-                        "eFX — arbitragem que a BCB 561 encerra em out/2026."
+                        "(ADR-0008). O resultado depende das premissas de custo, da defasagem entre fontes e "
+                        "da elegibilidade regulatória; não é cotação nem conclusão jurídica."
                     )
 
                     if caso_uso == "cross_border":
@@ -109,16 +109,16 @@ def renderizar():
                         if spread_indif < 0:
                             st.caption(
                                 f"📐 Fronteira de indiferença: nenhum spread real de Wire (≥0%) "
-                                f"alcança o trilho stablecoin aqui — a arbitragem é estrutural "
-                                f"(IOF sozinho já garante a vantagem, achado #1)."
+                                f"alcança o trilho stablecoin com as premissas deste cenário "
+                                f"(achado #1). Isso não substitui uma cotação negociada."
                             )
                         else:
                             relacao = "ACIMA" if spread_wire > spread_indif else "ABAIXO"
                             st.caption(
                                 f"📐 Fronteira de indiferença: com **{spread_indif:.2f}%** de spread "
                                 f"no Wire, os dois trilhos empatam. O slider está **{relacao}** desse "
-                                f"ponto — {'a conclusão atual é robusta neste tipo de operação' if relacao == 'ACIMA' else 'nesta faixa, o Wire já é mais barato — a manchete de economia não se sustenta aqui'} "
-                                f"(achado #1)."
+                                f"ponto — {'neste cenário, o Wire fica acima do custo calculado para stablecoin' if relacao == 'ACIMA' else 'neste cenário, o Wire já fica abaixo'} "
+                                f"(achado #1; não é recomendação)."
                             )
 
                     from src.comparador import LIMIAR_DEFASAGEM_PTAX_PERCENT

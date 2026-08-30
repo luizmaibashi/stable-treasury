@@ -1,5 +1,7 @@
 # StableTreasury — Aula Técnica Completa (ponta a ponta)
 
+> **ARQUIVO HISTÓRICO — narrativa superada.** Escrito antes do gate documental de 2026-08-30, este material preserva a evolução técnica, mas também contém a tese de economia/arbitragem que foi encerrada. Não o use como apresentação pública, recomendação de operação ou evidência de produto. O posicionamento vigente está no `README.md`; as limitações e decisões auditáveis estão em `AGENTS.md`, `docs/adr/0014-dashboard-modular-para-portfolio.md` e `docs/adr/0015-atualizacao-sob-demanda-da-demo.md`.
+
 > **Objetivo deste documento**: entender o sistema a fundo — a matemática, a engenharia e **por que cada decisão foi tomada** (incluindo as que foram rejeitadas e as que morreram no caminho).
 > **Data**: 2026-07-14 · **Estado**: 73 testes passando · ADRs 0001–0011
 > **Nota**: as seções 3–6 descrevem o modelo; os refinamentos de rigor (IOF, granularidade horária, order book real, ES de carteira, âncora Azul) estão consolidados na **seção 11** e no ADR-0011.

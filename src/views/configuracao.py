@@ -4,9 +4,9 @@ from src.coletor_precos import preco_stablecoin, ptax_venda
 
 
 def renderizar():
-    st.header("Configuração / Dados ao Vivo")
+    st.header("Configuração / Fontes públicas")
 
-    if st.button("Atualizar cotações"):
+    if st.button("Consultar fontes"):
         with st.spinner("Consultando APIs..."):
             usdt = preco_stablecoin("usdt")
             ptax = ptax_venda()
@@ -20,7 +20,7 @@ def renderizar():
             else:
                 st.warning("⚠️ BCB SGS falhou. Usando valor PTAX estimado.")
 
-            st.success("Cotações atualizadas (com fallbacks se necessário)!")
+            st.success("Fontes consultadas; fallbacks podem ter sido aplicados.")
 
     col_c1, col_c2, col_c3 = st.columns(3)
     col_c1.metric("USDT/BRL", f"R$ {st.session_state.get('usdt_brl', '—'):.2f}" if "usdt_brl" in st.session_state else "R$ —")
@@ -30,5 +30,5 @@ def renderizar():
     st.caption(
         "Preço via CoinGecko, câmbio via BCB SGS. Gas fee via Etherscan/PolygonScan **quando há API "
         "key configurada** — sem key, o gas cai para uma faixa fixa estimada (não on-chain ao vivo). "
-        "Cotações podem ter até 5 min de latência (F6/ADR-0009)."
+        "As observações têm cadência e latência próprias; não são cotações garantidas nem dados em tempo real."
     )
