@@ -2,15 +2,53 @@ import polars as pl
 try:
     from src.comparador import (
         comparar_custos, gerar_faturas_sinteticas, slippage_por_volume,
-        vwap_execucao, spread_indiferenca_wire,
+        vwap_execucao, spread_indiferenca_wire, comparar_custos_com_diagnostico,
     )
 except ImportError:
     import sys
     sys.path.insert(0, ".")
     from src.comparador import (
         comparar_custos, gerar_faturas_sinteticas, slippage_por_volume,
-        vwap_execucao, spread_indiferenca_wire,
+        vwap_execucao, spread_indiferenca_wire, comparar_custos_com_diagnostico,
     )
+
+
+def test_comparacao_expoe_fallbacks_de_binance_e_polygonscan(monkeypatch):
+    import src.comparador as cmp
+
+    monkeypatch.setattr(cmp, "order_book_usdt_brl", lambda *a, **k: None)
+    monkeypatch.setattr(cmp, "order_book_usdc_brl", lambda *a, **k: None)
+    monkeypatch.setattr(cmp, "gas_fee_polygon_com_status", lambda: ({"avg_gwei": 50}, True))
+    monkeypatch.setattr(cmp, "gas_fee_eth", lambda: {"avg_gwei": 20})
+    monkeypatch.setattr(cmp, "preco_eth", lambda: 1800.0)
+    monkeypatch.setattr(cmp, "preco_matic", lambda: 0.50)
+
+    resultado = comparar_custos_com_diagnostico(50_000)
+
+    assert resultado.modo_degradado is True
+    assert {fallback.fonte for fallback in resultado.fallbacks} == {
+        "Binance (USDT/BRL)",
+        "Binance (USDC/BRL)",
+        "PolygonScan",
+    }
+    assert all("fallback" in fallback.descricao.lower() for fallback in resultado.fallbacks)
+
+
+def test_comparacao_sem_fallback_nao_marca_modo_degradado(monkeypatch):
+    import src.comparador as cmp
+
+    book = {"bids": [[5.00, 1_000_000.0]], "asks": [[5.00, 1_000_000.0]]}
+    monkeypatch.setattr(cmp, "order_book_usdt_brl", lambda *a, **k: book)
+    monkeypatch.setattr(cmp, "order_book_usdc_brl", lambda *a, **k: book)
+    monkeypatch.setattr(cmp, "gas_fee_polygon_com_status", lambda: ({"avg_gwei": 42}, False))
+    monkeypatch.setattr(cmp, "gas_fee_eth", lambda: {"avg_gwei": 20})
+    monkeypatch.setattr(cmp, "preco_eth", lambda: 1800.0)
+    monkeypatch.setattr(cmp, "preco_matic", lambda: 0.50)
+
+    resultado = comparar_custos_com_diagnostico(50_000)
+
+    assert resultado.modo_degradado is False
+    assert resultado.fallbacks == ()
 
 
 # --- #3 (ADR-0011): VWAP no order book real, matemática pura ---
@@ -178,7 +216,7 @@ def test_fronteira_indiferenca_bate_no_ponto_exato(monkeypatch):
     monkeypatch.setattr(cmp, "order_book_usdt_brl", lambda *a, **k: None)
     monkeypatch.setattr(cmp, "order_book_usdc_brl", lambda *a, **k: None)
     monkeypatch.setattr(cmp, "gas_fee_eth", lambda: {"avg_gwei": 20})
-    monkeypatch.setattr(cmp, "gas_fee_polygon", lambda: {"avg_gwei": 50})
+    monkeypatch.setattr(cmp, "gas_fee_polygon_com_status", lambda: ({"avg_gwei": 50}, False))
     monkeypatch.setattr(cmp, "preco_eth", lambda: 1800.0)
     monkeypatch.setattr(cmp, "preco_matic", lambda: 0.50)
 
@@ -207,7 +245,7 @@ def test_fronteira_indiferenca_importacao_bens_alcancavel_remessa_estrutural(mon
     monkeypatch.setattr(cmp, "order_book_usdt_brl", lambda *a, **k: None)
     monkeypatch.setattr(cmp, "order_book_usdc_brl", lambda *a, **k: None)
     monkeypatch.setattr(cmp, "gas_fee_eth", lambda: {"avg_gwei": 20})
-    monkeypatch.setattr(cmp, "gas_fee_polygon", lambda: {"avg_gwei": 50})
+    monkeypatch.setattr(cmp, "gas_fee_polygon_com_status", lambda: ({"avg_gwei": 50}, False))
     monkeypatch.setattr(cmp, "preco_eth", lambda: 1800.0)
     monkeypatch.setattr(cmp, "preco_matic", lambda: 0.50)
 

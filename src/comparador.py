@@ -1,7 +1,9 @@
+from dataclasses import dataclass
+
 import polars as pl
 from .iof_tabela import aliquota_iof
 from .coletor_precos import (
-    preco_stablecoin, preco_eth, preco_matic, gas_fee_eth, gas_fee_polygon,
+    preco_stablecoin, preco_eth, preco_matic, gas_fee_eth, gas_fee_polygon_com_status,
     ptax_venda, PTAX_FALLBACK, order_book_usdt_brl, order_book_usdc_brl,
 )
 from .compliance import filtrar_trilhos_permitidos
@@ -25,6 +27,26 @@ FAIXAS_SLIPPAGE = [
     (10_000_000, 0.25),
     (float("inf"), 0.5),
 ]
+
+
+@dataclass(frozen=True)
+class FallbackAtivo:
+    """Premissa aplicada porque a fonte pública não respondeu nesta execução."""
+
+    fonte: str
+    descricao: str
+
+
+@dataclass(frozen=True)
+class ResultadoComparacao:
+    """Custos e proveniência dos dados usados no mesmo cenário."""
+
+    custos: pl.DataFrame
+    fallbacks: tuple[FallbackAtivo, ...]
+
+    @property
+    def modo_degradado(self) -> bool:
+        return bool(self.fallbacks)
 
 
 def slippage_por_volume(valor_brl: float) -> float:
@@ -112,6 +134,24 @@ def comparar_custos(
     eletronico_cambio: bool = False,
     spread_wire_percent: float = SPREAD_WIRE_PERCENT,
 ) -> pl.DataFrame:
+    """Compara custos preservando a API pública legada de DataFrame."""
+    return comparar_custos_com_diagnostico(
+        valor_brl,
+        tipo_operacao,
+        caso_uso,
+        eletronico_cambio,
+        spread_wire_percent,
+    ).custos
+
+
+def comparar_custos_com_diagnostico(
+    valor_brl: float,
+    tipo_operacao: str = "remessa_internacional_terceiros",
+    caso_uso: str = "cross_border",
+    eletronico_cambio: bool = False,
+    spread_wire_percent: float = SPREAD_WIRE_PERCENT,
+) -> ResultadoComparacao:
+    """Compara custos e torna explícitos os fallbacks da mesma execução."""
     # Achado #1 (auditoria 2026-07-30): SPREAD_WIRE_PERCENT era constante fixa (2,5%, spread
     # de varejo/PME). Tesouraria corporativa negocia 0,2–0,8% em ticket grande — e a economia
     # do stablecoin depende diretamente desse número, tanto quanto do IOF. Virou parâmetro
@@ -137,7 +177,7 @@ def comparar_custos(
     defasagem_usdc = _defasagem_pct(_mid_do_book(book_usdc), ptax)
 
     gas_eth = gas_fee_eth()
-    gas_poly = gas_fee_polygon()
+    gas_poly, polygon_em_fallback = gas_fee_polygon_com_status()
     eth_usd = preco_eth() or 1800.0
     matic_usd = preco_matic() or 0.50
     gas_eth_usd = gas_eth["avg_gwei"] * 1e-9 * GAS_UNITS_ERC20 * eth_usd
@@ -163,10 +203,27 @@ def comparar_custos(
         )
 
     resultados = [construtores[t]() for t in elegiveis]
-    df = pl.DataFrame(resultados)
-    return df.with_columns(
+    df = pl.DataFrame(resultados).with_columns(
         (pl.col("custo_total_brl") / valor_brl * 100).alias("custo_percent")
     ).sort("custo_total_brl")
+
+    fallbacks = []
+    if book_usdt is None:
+        fallbacks.append(FallbackAtivo(
+            "Binance (USDT/BRL)",
+            "Fallback ativo: slippage heurístico por volume.",
+        ))
+    if book_usdc is None:
+        fallbacks.append(FallbackAtivo(
+            "Binance (USDC/BRL)",
+            "Fallback ativo: slippage heurístico por volume.",
+        ))
+    if polygon_em_fallback:
+        fallbacks.append(FallbackAtivo(
+            "PolygonScan",
+            "Fallback ativo: perfil padrão de gas (50 gwei).",
+        ))
+    return ResultadoComparacao(custos=df, fallbacks=tuple(fallbacks))
 
 
 def spread_indiferenca_wire(

@@ -1,9 +1,48 @@
 try:
-    from src.coletor_precos import taxa_cdi, taxa_tbill, ptax_venda, TTL_TAXAS_SEGUNDOS
+    from src.coletor_precos import (
+        taxa_cdi, taxa_tbill, ptax_venda, TTL_TAXAS_SEGUNDOS,
+        gas_fee_polygon_com_status, POLYGON_GAS_FALLBACK,
+    )
 except ImportError:
     import sys
     sys.path.insert(0, ".")
-    from src.coletor_precos import taxa_cdi, taxa_tbill, ptax_venda, TTL_TAXAS_SEGUNDOS
+    from src.coletor_precos import (
+        taxa_cdi, taxa_tbill, ptax_venda, TTL_TAXAS_SEGUNDOS,
+        gas_fee_polygon_com_status, POLYGON_GAS_FALLBACK,
+    )
+
+
+def test_gas_polygon_expoe_status_e_log_quando_usa_fallback(monkeypatch, caplog):
+    import src.coletor_precos as cp
+
+    def _falha_de_rede(*args, **kwargs):
+        raise cp.requests.RequestException("fonte indisponível")
+
+    monkeypatch.setattr(cp.requests, "get", _falha_de_rede)
+
+    gas, em_fallback = gas_fee_polygon_com_status()
+
+    assert em_fallback is True
+    assert gas == POLYGON_GAS_FALLBACK
+    assert "fallback_ativado fonte=PolygonScan" in caplog.text
+
+
+def test_gas_polygon_resposta_sem_taxa_valida_ativa_fallback(monkeypatch):
+    import src.coletor_precos as cp
+
+    class _RespostaSemTaxa:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"status": "1", "result": {"ProposeGasPrice": "0"}}
+
+    monkeypatch.setattr(cp.requests, "get", lambda *args, **kwargs: _RespostaSemTaxa())
+
+    gas, em_fallback = gas_fee_polygon_com_status()
+
+    assert em_fallback is True
+    assert gas == POLYGON_GAS_FALLBACK
 
 
 # --- Achado menor (auditoria 2026-07-30): lru_cache sem TTL em processo Streamlit de longa

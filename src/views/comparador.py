@@ -1,6 +1,6 @@
 import streamlit as st
 
-from src.comparador import comparar_custos, gerar_faturas_sinteticas
+from src.comparador import comparar_custos_com_diagnostico, gerar_faturas_sinteticas
 from src.ui import intro
 
 
@@ -54,10 +54,18 @@ def renderizar():
         if st.button("Simular cenário", type="primary"):
             with st.spinner("Calculando o cenário com as fontes disponíveis..."):
                 try:
-                    df = comparar_custos(
+                    resultado = comparar_custos_com_diagnostico(
                         valor, tipo_op, caso_uso=caso_uso, eletronico_cambio=efx,
                         spread_wire_percent=spread_wire,
                     )
+                    df = resultado.custos
+                    if resultado.modo_degradado:
+                        st.warning(
+                            "Modo degradado: uma ou mais fontes públicas monitoradas não responderam. "
+                            "O cenário continua calculado, com as premissas abaixo."
+                        )
+                        for fallback in resultado.fallbacks:
+                            st.caption(f"• **{fallback.fonte}** — {fallback.descricao}")
                     st.session_state["df_custos"] = df
 
                     melhor = df[0]

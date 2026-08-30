@@ -61,6 +61,7 @@
 | **Opportunity Cost** | Rendimento que o caixa alocado em stablecoin deixa de ganhar por ficar parado; card do dashboard compara % alocado pelo Optimizer vs. yield de protocolo de referência (ADR-0007) |
 | **Yield (APY)** | Taxa de rendimento anual de um protocolo DeFi (ex: Aave), consultada via DefiLlama `/yields` — só leitura de dado público, sem execução/depósito real |
 | **Slippage heurístico** | Acréscimo de custo estimado por faixa de volume no Rail Comparator, aproximando perda de liquidez em conversões grandes — não é modelo de order book real (ADR-0007, débito técnico #11) |
+| **Modo degradado** | Estado explícito de uma simulação em que uma fonte pública indisponível foi substituída por fallback documentado; o cálculo continua, mas a interface identifica a fonte e a premissa usada |
 | **Caso de uso** | Segmento do pagamento: `domestico` (BRL→BRL, só PIX) ou `cross_border` (converte BRL↔USD: Wire/USDT/USDC). Comparação de trilhos só é válida dentro do mesmo caso de uso (ADR-0008) |
 | **On-ramp / Off-ramp** | Entrada (BRL→stablecoin, prêmio real de mercado) e saída (stablecoin→USD, 0,3% fixo) do trilho cripto — o custo de conversão que o modelo antigo ignorava (ADR-0008) |
 | **DCOH (days cash on hand)** | Dias de opex cobertos pelo caixa; base corporativa pra dimensionar reserva (default 60d), no lugar de "meses de despesa" (ADR-0009) |

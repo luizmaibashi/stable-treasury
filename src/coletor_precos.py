@@ -85,7 +85,11 @@ def gas_fee_eth() -> dict:
     return {"low_gwei": 10, "avg_gwei": 20, "high_gwei": 50}
 
 
-def gas_fee_polygon() -> dict:
+POLYGON_GAS_FALLBACK = {"low_gwei": 30, "avg_gwei": 50, "high_gwei": 100}
+
+
+def gas_fee_polygon_com_status() -> tuple[dict, bool]:
+    """Retorna gas da Polygon e informa se o perfil de fallback foi necessário."""
     try:
         resp = requests.get(
             POLYGONSCAN_URL,
@@ -100,14 +104,30 @@ def gas_fee_polygon() -> dict:
         data = resp.json()
         if data.get("status") == "1":
             result = data["result"]
-            return {
+            gas = {
                 "low_gwei": float(result.get("SafeGasPrice", 0)),
                 "avg_gwei": float(result.get("ProposeGasPrice", 0)),
                 "high_gwei": float(result.get("FastGasPrice", 0)),
             }
+            if gas["avg_gwei"] > 0:
+                return gas, False
+        logger.warning(
+            "fallback_ativado fonte=PolygonScan componente=gas_fee_polygon "
+            "fallback=perfil_padrao_50_gwei motivo=resposta_sem_taxa_valida"
+        )
     except Exception as e:
-        logger.warning(f"Falha ao consultar PolygonScan (fallback 50 gwei ativado): {e}")
-    return {"low_gwei": 30, "avg_gwei": 50, "high_gwei": 100}
+        logger.warning(
+            "fallback_ativado fonte=PolygonScan componente=gas_fee_polygon "
+            "fallback=perfil_padrao_50_gwei motivo=%s",
+            e,
+        )
+    return POLYGON_GAS_FALLBACK.copy(), True
+
+
+def gas_fee_polygon() -> dict:
+    """Mantém a API legada de gas sem expor a origem ao chamador."""
+    gas, _ = gas_fee_polygon_com_status()
+    return gas
 
 
 def preco_eth() -> float | None:
@@ -154,7 +174,12 @@ def _order_book(symbol: str, limit: int = 100) -> dict | None:
             "asks": [[float(p), float(q)] for p, q in data["asks"]],
         }
     except Exception as e:
-        logger.warning(f"Falha ao consultar order book {symbol} via Binance: {e}")
+        logger.warning(
+            "fallback_ativado fonte=Binance componente=order_book_%s "
+            "fallback=slippage_heuristico_por_volume motivo=%s",
+            symbol.lower(),
+            e,
+        )
         return None
 
 
